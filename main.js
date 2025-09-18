@@ -1,5 +1,3 @@
-import Phaser from "phaser";
-
 const config = {
     type: Phaser.AUTO,
     width: 800,
@@ -61,4 +59,6 @@ function update() {
     shadow.setPosition(player.x, player.y + 32 * scale);
 }
 
+// グローバルPhaserを使う
+const game = new window.Phaser.Game(config);
 const game = new Phaser.Game(config);
