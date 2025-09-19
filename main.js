@@ -95,11 +95,36 @@ document.addEventListener('keyup', onKeyUp);
 
 // ポインタロック開始
 const instructions = document.getElementById('instructions');
+
+// エラーメッセージ表示用要素を作成
+let errorDiv = document.createElement('div');
+errorDiv.style.color = 'red';
+errorDiv.style.position = 'absolute';
+errorDiv.style.top = '60%';
+errorDiv.style.left = '0';
+errorDiv.style.width = '100vw';
+errorDiv.style.textAlign = 'center';
+errorDiv.style.zIndex = '20';
+errorDiv.style.fontSize = '1.2em';
+errorDiv.style.pointerEvents = 'none';
+document.body.appendChild(errorDiv);
+
 instructions.addEventListener('click', () => {
-    controls.lock();
+    errorDiv.textContent = '';
+    try {
+        controls.lock();
+        // PointerLock APIがサポートされていない場合
+        if (!('pointerLockElement' in document)) {
+            throw new Error('このブラウザはPointer Lock APIに対応していません。');
+        }
+    } catch (e) {
+        errorDiv.textContent = 'エラー: ' + (e.message || e);
+    }
 });
+
 controls.addEventListener('lock', () => {
     instructions.style.display = 'none';
+    errorDiv.textContent = '';
 });
 controls.addEventListener('unlock', () => {
     instructions.style.display = '';
