@@ -1,115 +1,139 @@
-const config = {
-    type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    backgroundColor: "#222",
-    physics: {
-        default: "arcade",
-        arcade: {
-            gravity: { y: 0 },
-            debug: false
-        }
-    },
-    scene: {
-        preload,
-        create,
-        update
+import * as THREE from 'three';
+
+// PointerLockControlsはグローバルにロードされている
+const { PointerLockControls } = window;
+
+// シーン・カメラ・レンダラー
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222233);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 1.6, 0); // FPS視点
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// ライト
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(5, 10, 7);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x8888aa, 0.5));
+
+// 床
+const floorGeo = new THREE.PlaneGeometry(100, 100, 20, 20);
+const floorMat = new THREE.MeshPhongMaterial({ color: 0x333366, wireframe: true });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+// FPSコントロール
+const controls = new PointerLockControls(camera, renderer.domElement);
+
+// 弧月（こげつ）モデルを作成（簡易的な剣）
+function createKogetsu() {
+    const kogetsu = new THREE.Group();
+
+    // 刃（シリンダー）
+    const bladeGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.0, 16);
+    const bladeMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.y = 0.5;
+    kogetsu.add(blade);
+
+    // 柄（グリップ）
+    const gripGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.3, 12);
+    const gripMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+    const grip = new THREE.Mesh(gripGeo, gripMat);
+    grip.position.y = -0.35;
+    kogetsu.add(grip);
+
+    // ガード（円盤）
+    const guardGeo = new THREE.TorusGeometry(0.09, 0.02, 8, 16);
+    const guardMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const guard = new THREE.Mesh(guardGeo, guardMat);
+    guard.position.y = 0.0;
+    guard.rotation.x = Math.PI / 2;
+    kogetsu.add(guard);
+
+    // 右手前に配置
+    kogetsu.position.set(0.3, -0.3, -0.6);
+    kogetsu.rotation.z = Math.PI / 8;
+    kogetsu.rotation.x = Math.PI / 10;
+    return kogetsu;
+}
+
+// 弧月をカメラの子にして常に手前に表示
+const kogetsu = createKogetsu();
+camera.add(kogetsu);
+scene.add(camera);
+
+// 移動制御
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+const move = { forward: false, backward: false, left: false, right: false };
+
+function onKeyDown(event) {
+    switch (event.code) {
+        case 'KeyW': move.forward = true; break;
+        case 'KeyS': move.backward = true; break;
+        case 'KeyA': move.left = true; break;
+        case 'KeyD': move.right = true; break;
     }
-};
-
-let cursors;
-let cameraDirection = 0; // ラジアン
-let player = { x: 400, y: 300, speed: 200 };
-let pointerLocked = false;
-let crosshair;
-
-function preload() {
-    // クロスヘア用画像を生成
 }
-
-function create() {
-    // クロスヘア（中央の照準）
-    crosshair = this.add.graphics();
-    crosshair.lineStyle(2, 0xffffff, 1);
-    crosshair.strokeLineShape(new Phaser.Geom.Line(400 - 10, 300, 400 + 10, 300));
-    crosshair.strokeLineShape(new Phaser.Geom.Line(400, 300 - 10, 400, 300 + 10));
-
-    // キーボード
-    cursors = this.input.keyboard.addKeys({
-        up: Phaser.Input.Keyboard.KeyCodes.W,
-        down: Phaser.Input.Keyboard.KeyCodes.S,
-        left: Phaser.Input.Keyboard.KeyCodes.A,
-        right: Phaser.Input.Keyboard.KeyCodes.D
-    });
-
-    // マウスロック
-    this.input.on('pointerdown', function () {
-        if (!pointerLocked) {
-            this.input.mouse.requestPointerLock();
-        }
-    }, this);
-
-    this.input.mouse.on('pointerlockchange', function (locked) {
-        pointerLocked = locked;
-    }, this);
-
-    // マウスで視点回転
-    this.input.on('pointermove', function (pointer) {
-        if (pointerLocked) {
-            cameraDirection += pointer.movementX * 0.002;
-        }
-    }, this);
-
-    // 背景用タイル
-    this.bg = this.add.tileSprite(400, 300, 800, 600, null);
-    this.bg.fillColor = 0x333366;
-    this.bg.setOrigin(0.5, 0.5);
-    // 簡易的な床模様
-    this.bgGraphics = this.add.graphics();
+function onKeyUp(event) {
+    switch (event.code) {
+        case 'KeyW': move.forward = false; break;
+        case 'KeyS': move.backward = false; break;
+        case 'KeyA': move.left = false; break;
+        case 'KeyD': move.right = false; break;
+    }
 }
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
 
-function update(time, delta) {
+// ポインタロック開始
+const instructions = document.getElementById('instructions');
+instructions.addEventListener('click', () => {
+    controls.lock();
+});
+controls.addEventListener('lock', () => {
+    instructions.style.display = 'none';
+});
+controls.addEventListener('unlock', () => {
+    instructions.style.display = '';
+});
+
+// レンダーループ
+let prevTime = performance.now();
+function animate() {
+    requestAnimationFrame(animate);
+
+    const time = performance.now();
+    const delta = (time - prevTime) / 1000;
+
     // 移動
-    let moveX = 0, moveY = 0;
-    if (cursors.up.isDown) moveY += 1;
-    if (cursors.down.isDown) moveY -= 1;
-    if (cursors.left.isDown) moveX -= 1;
-    if (cursors.right.isDown) moveX += 1;
+    velocity.x -= velocity.x * 10.0 * delta;
+    velocity.z -= velocity.z * 10.0 * delta;
 
-    // 進行方向をカメラの向きに合わせる
-    let angle = cameraDirection;
-    let speed = player.speed * (delta / 1000);
-    let dx = (moveY * Math.cos(angle) + moveX * Math.cos(angle - Math.PI/2)) * speed;
-    let dy = (moveY * Math.sin(angle) + moveX * Math.sin(angle - Math.PI/2)) * speed;
-    player.x += dx;
-    player.y += dy;
+    direction.z = Number(move.forward) - Number(move.backward);
+    direction.x = Number(move.right) - Number(move.left);
+    direction.normalize();
 
-    // 背景を動かして移動感を出す
-    this.bg.tilePositionX = player.x;
-    this.bg.tilePositionY = player.y;
+    if (move.forward || move.backward) velocity.z -= direction.z * 8.0 * delta;
+    if (move.left || move.right) velocity.x -= direction.x * 8.0 * delta;
 
-    // 床模様を描画
-    this.bgGraphics.clear();
-    this.bgGraphics.fillStyle(0x333366, 1);
-    this.bgGraphics.fillRect(0, 0, 800, 600);
-    this.bgGraphics.lineStyle(1, 0x8888cc, 0.5);
-    for (let i = -10; i <= 10; i++) {
-        // 奥行き方向の線
-        let x1 = 400 + Math.cos(angle) * -300 + Math.cos(angle - Math.PI/2) * i * 40;
-        let y1 = 300 + Math.sin(angle) * -300 + Math.sin(angle - Math.PI/2) * i * 40;
-        let x2 = 400 + Math.cos(angle) * 300 + Math.cos(angle - Math.PI/2) * i * 40;
-        let y2 = 300 + Math.sin(angle) * 300 + Math.sin(angle - Math.PI/2) * i * 40;
-        this.bgGraphics.lineBetween(x1, y1, x2, y2);
-    }
-    for (let j = -7; j <= 7; j++) {
-        // 横方向の線
-        let x1 = 400 + Math.cos(angle - Math.PI/2) * -400 + Math.cos(angle) * j * 40;
-        let y1 = 300 + Math.sin(angle - Math.PI/2) * -400 + Math.sin(angle) * j * 40;
-        let x2 = 400 + Math.cos(angle - Math.PI/2) * 400 + Math.cos(angle) * j * 40;
-        let y2 = 300 + Math.sin(angle - Math.PI/2) * 400 + Math.sin(angle) * j * 40;
-        this.bgGraphics.lineBetween(x1, y1, x2, y2);
-    }
+    controls.moveRight(-velocity.x * delta);
+    controls.moveForward(-velocity.z * delta);
+
+    renderer.render(scene, camera);
+    prevTime = time;
 }
+animate();
 
-// グローバルPhaserを使う
-const game = new window.Phaser.Game(config);
+// リサイズ対応
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});

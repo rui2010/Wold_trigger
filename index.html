@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>ゲーム</title>
-  <meta name="viewport" content="width=800, initial-scale=1">
-  <style>
-    body { margin: 0; background: #222; }
-    canvas { display: block; margin: 0 auto; }
-  </style>
-  <!-- Phaserをグローバルで読み込む -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+    <meta charset="UTF-8">
+    <title>World Trigger FPS Demo</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; }
+        canvas { display: block; }
+        #instructions {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; background: rgba(0,0,0,0.7); font-size: 2em; z-index: 10;
+        }
+    </style>
 </head>
 <body>
-  <!-- main.jsを通常のスクリプトとして読み込む -->
-  <script src="main.js"></script>
+    <div id="instructions">クリックして開始</div>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/PointerLockControls.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
-</html>
 </html>
