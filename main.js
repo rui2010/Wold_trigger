@@ -96,7 +96,7 @@ document.addEventListener('keyup', onKeyUp);
 // ポインタロック開始
 const instructions = document.getElementById('instructions');
 
-// エラーメッセージ表示用要素を作成
+// エラーメッセージ表示用要素
 let errorDiv = document.createElement('div');
 errorDiv.style.color = 'red';
 errorDiv.style.position = 'absolute';
@@ -109,25 +109,24 @@ errorDiv.style.fontSize = '1.2em';
 errorDiv.style.pointerEvents = 'none';
 document.body.appendChild(errorDiv);
 
-instructions.addEventListener('click', () => {
-    errorDiv.textContent = '';
-    try {
-        controls.lock();
-        // PointerLock APIがサポートされていない場合
-        if (!('pointerLockElement' in document)) {
-            throw new Error('このブラウザはPointer Lock APIに対応していません。');
-        }
-    } catch (e) {
-        errorDiv.textContent = 'エラー: ' + (e.message || e);
+// PointerLock APIのイベント監視
+document.addEventListener('pointerlockerror', () => {
+    errorDiv.textContent = 'エラー: Pointer Lockに失敗しました。ブラウザの設定やHTTPSでのアクセスを確認してください。';
+    instructions.style.display = '';
+});
+document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === renderer.domElement) {
+        instructions.style.display = 'none';
+        errorDiv.textContent = '';
+    } else {
+        instructions.style.display = '';
     }
 });
 
-controls.addEventListener('lock', () => {
-    instructions.style.display = 'none';
+instructions.addEventListener('click', () => {
     errorDiv.textContent = '';
-});
-controls.addEventListener('unlock', () => {
-    instructions.style.display = '';
+    // controls.lock()はPointerLock APIを呼ぶ
+    controls.lock();
 });
 
 // レンダーループ
@@ -162,4 +161,5 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+});
 });
