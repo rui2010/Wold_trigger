@@ -8,12 +8,12 @@
     body { margin: 0; background: #222; }
     canvas { display: block; margin: 0 auto; }
   </style>
+  <!-- Phaserをグローバルで読み込む -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 </head>
 <body>
-  <script type="module">
-    import Phaser from "https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.esm.js";
-    window.Phaser = Phaser;
-    import './main.js';
-  </script>
+  <!-- main.jsを通常のスクリプトとして読み込む -->
+  <script src="main.js"></script>
 </body>
+</html>
 </html>

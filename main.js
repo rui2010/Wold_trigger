@@ -61,4 +61,3 @@ function update() {
 
 // グローバルPhaserを使う
 const game = new window.Phaser.Game(config);
-const game = new Phaser.Game(config);
