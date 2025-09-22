@@ -105,9 +105,10 @@ function init() {
     // 設定画面の開閉ボタン
     const openBtn = document.createElement('button');
     openBtn.textContent = '設定';
+    // ボタンを左上に移動
     openBtn.style.position = 'absolute';
     openBtn.style.top = '10px';
-    openBtn.style.right = '10px';
+    openBtn.style.left = '10px'; // ← rightからleftに変更
     openBtn.style.zIndex = 201;
     openBtn.style.padding = '8px 16px';
     openBtn.style.fontSize = '14px';
@@ -220,16 +221,22 @@ function init() {
         if (viewMode === 'fps') {
             // カメラをプレイヤー位置に
             camera.position.copy(playerPos);
-            camera.rotation.set(pitch, yaw, 0);
+
+            // カメラの向きをピッチ・ヨー・ロールで設定（ロールは0）
+            camera.rotation.order = "YXZ";
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+            camera.rotation.z = 0;
         } else if (viewMode === 'tps') {
-            // TPS: プレイヤーの後方上空からプレイヤーを見る
+            // TPS: プレイヤーの周囲を球面座標で回る
             const tpsDistance = 18;
-            const tpsHeight = 8;
-            // TPS時はpitch/yawでカメラの向きを制御し、プレイヤーの周囲を回る
+            // pitch: -PI/2(真下) ～ +PI/2(真上) で制限
+            const tpsPitch = pitch;
+            const tpsYaw = yaw;
             const offset = new THREE.Vector3(
-                Math.sin(yaw) * Math.cos(pitch) * tpsDistance,
-                tpsHeight + Math.sin(pitch) * tpsDistance,
-                Math.cos(yaw) * Math.cos(pitch) * tpsDistance
+                Math.sin(tpsYaw) * Math.cos(tpsPitch) * tpsDistance,
+                Math.sin(tpsPitch) * tpsDistance + 4,
+                Math.cos(tpsYaw) * Math.cos(tpsPitch) * tpsDistance
             );
             camera.position.copy(playerPos.clone().add(offset));
             camera.lookAt(playerPos);
@@ -243,13 +250,24 @@ function init() {
         if (move.right) direction.x += 1;
         direction.normalize();
         if (direction.length() > 0) {
-            // 移動方向はyawのみ考慮（TPSでも同じ）
-            const moveVector = new THREE.Vector3(direction.x, 0, direction.z);
-            moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+            // 移動方向はカメラの向き（yawとpitch両方）を考慮
+            let moveVector;
+            if (viewMode === 'fps') {
+                // 前進・後退はpitchも考慮して上下にも進める
+                moveVector = new THREE.Vector3(direction.x, 0, direction.z);
+                // 前後移動はpitchも反映
+                const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+                const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+                moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
+            } else {
+                // TPS時は水平方向のみ
+                moveVector = new THREE.Vector3(direction.x, 0, direction.z);
+                moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+            }
             playerPos.add(moveVector.multiplyScalar(speed));
-            miniCanvas.style.display = ''; // 動いているときミニキャラ表示
+            miniCanvas.style.display = '';
         } else {
-            miniCanvas.style.display = 'none'; // 止まっているとき非表示
+            miniCanvas.style.display = 'none';
         }
 
         renderer.render(scene, camera);
