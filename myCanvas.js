@@ -32,6 +32,18 @@ function init() {
     light.position.set(10, 10, 10);
     scene.add(light);
 
+    // 簡単な建物を複数追加
+    const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0x3366cc });
+    for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+            if (i === 0 && j === 0) continue; // 中央は空ける
+            const buildingGeometry = new THREE.BoxGeometry(2, 4 + Math.random() * 6, 2);
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            building.position.set(i * 8, building.geometry.parameters.height / 2, j * 8);
+            scene.add(building);
+        }
+    }
+
     // FPS移動用の変数
     const move = { forward: false, backward: false, left: false, right: false };
     const speed = 0.1;
