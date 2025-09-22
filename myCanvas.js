@@ -18,7 +18,9 @@ function init() {
 
     // カメラを作成（FPS視点）
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(0, 8, 25); // 高く遠くからスタート
+    // プレイヤーの仮想位置
+    const playerPos = new THREE.Vector3(0, 2, 5);
+    camera.position.copy(playerPos);
     let yaw = 0;
     let pitch = -0.18; // 少し下向き
 
@@ -36,15 +38,13 @@ function init() {
     scene.add(light);
 
     // 簡単な建物を複数追加
-    // 建物をランダムな高さ・色で広めに配置
+    // 建物を赤色で広めに配置
     for (let i = -2; i <= 2; i++) {
         for (let j = -2; j <= 2; j++) {
             if (i === 0 && j === 0) continue;
             const h = 6 + Math.random() * 10;
             const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
-            // ランダムな色
-            const color = new THREE.Color().setHSL(Math.random(), 0.5, 0.5);
-            const buildingMaterial = new THREE.MeshPhongMaterial({ color });
+            const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 }); // 赤色
             const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
             building.position.set(i * 14, h / 2, j * 14);
             scene.add(building);
@@ -69,13 +69,32 @@ function init() {
         if (e.code === 'KeyD') move.right = false;
     });
 
-    // カメラの向き制御用
-    // let yaw = 0; // ←上で宣言済み
-    // let pitch = 0; // ←上で宣言し、初期値を-0.18に
+    // --- 視点切り替えUI追加 ---
+    const select = document.createElement('select');
+    select.style.position = 'absolute';
+    select.style.top = '10px';
+    select.style.left = '10px';
+    select.style.zIndex = 100;
+    select.innerHTML = `
+        <option value="fps">FPS視点</option>
+        <option value="tps">TPS視点</option>
+    `;
+    document.body.appendChild(select);
+
+    let viewMode = 'fps';
+    select.addEventListener('change', () => {
+        viewMode = select.value;
+        if (viewMode === 'fps') {
+            // FPS時はカメラをプレイヤー位置に戻す
+            camera.position.set(playerPos.x, playerPos.y, playerPos.z);
+        }
+    });
 
     // PointerLockでマウスキャプチャ
     canvasElement.addEventListener('click', () => {
-        canvasElement.requestPointerLock();
+        if (viewMode === 'fps') {
+            canvasElement.requestPointerLock();
+        }
     });
 
     document.addEventListener('pointerlockchange', () => {
@@ -98,10 +117,26 @@ function init() {
     function animate() {
         requestAnimationFrame(animate);
 
-        // カメラの向きを反映（上下左右両方）
-        camera.rotation.set(pitch, yaw, 0);
+        // 視点ごとにカメラ位置・向きを制御
+        if (viewMode === 'fps') {
+            // カメラをプレイヤー位置に
+            camera.position.copy(playerPos);
+            camera.rotation.set(pitch, yaw, 0);
+        } else if (viewMode === 'tps') {
+            // TPS: プレイヤーの後方上空からプレイヤーを見る
+            const tpsDistance = 18;
+            const tpsHeight = 8;
+            // TPS時はpitch/yawでカメラの向きを制御し、プレイヤーの周囲を回る
+            const offset = new THREE.Vector3(
+                Math.sin(yaw) * Math.cos(pitch) * tpsDistance,
+                tpsHeight + Math.sin(pitch) * tpsDistance,
+                Math.cos(yaw) * Math.cos(pitch) * tpsDistance
+            );
+            camera.position.copy(playerPos.clone().add(offset));
+            camera.lookAt(playerPos);
+        }
 
-        // カメラ移動
+        // 移動処理（プレイヤー位置を動かす）
         let direction = new THREE.Vector3();
         if (move.forward) direction.z -= 1;
         if (move.backward) direction.z += 1;
@@ -109,9 +144,10 @@ function init() {
         if (move.right) direction.x += 1;
         direction.normalize();
         if (direction.length() > 0) {
+            // 移動方向はyawのみ考慮（TPSでも同じ）
             const moveVector = new THREE.Vector3(direction.x, 0, direction.z);
             moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-            camera.position.add(moveVector.multiplyScalar(speed));
+            playerPos.add(moveVector.multiplyScalar(speed));
         }
 
         renderer.render(scene, camera);
