@@ -18,11 +18,14 @@ function init() {
 
     // カメラを作成（FPS視点）
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(0, 2, 5); // 少し上からスタート
+    camera.position.set(0, 8, 25); // 高く遠くからスタート
+    let yaw = 0;
+    let pitch = -0.18; // 少し下向き
 
     // 簡単な地面を追加
+    // 地面の色を明るく
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
@@ -33,13 +36,17 @@ function init() {
     scene.add(light);
 
     // 簡単な建物を複数追加
-    const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0x3366cc });
+    // 建物をランダムな高さ・色で広めに配置
     for (let i = -2; i <= 2; i++) {
         for (let j = -2; j <= 2; j++) {
-            if (i === 0 && j === 0) continue; // 中央は空ける
-            const buildingGeometry = new THREE.BoxGeometry(2, 4 + Math.random() * 6, 2);
+            if (i === 0 && j === 0) continue;
+            const h = 6 + Math.random() * 10;
+            const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
+            // ランダムな色
+            const color = new THREE.Color().setHSL(Math.random(), 0.5, 0.5);
+            const buildingMaterial = new THREE.MeshPhongMaterial({ color });
             const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
-            building.position.set(i * 8, building.geometry.parameters.height / 2, j * 8);
+            building.position.set(i * 14, h / 2, j * 14);
             scene.add(building);
         }
     }
@@ -63,8 +70,8 @@ function init() {
     });
 
     // カメラの向き制御用
-    let yaw = 0; // 左右
-    let pitch = 0; // 上下（今回は固定）
+    // let yaw = 0; // ←上で宣言済み
+    // let pitch = 0; // ←上で宣言し、初期値を-0.18に
 
     // PointerLockでマウスキャプチャ
     canvasElement.addEventListener('click', () => {
@@ -82,16 +89,17 @@ function init() {
     function onMouseMove(e) {
         const sensitivity = 0.002;
         yaw -= e.movementX * sensitivity;
-        // pitch -= e.movementY * sensitivity; // 上下回転したい場合
-        // pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+        pitch -= e.movementY * sensitivity;
+        // ピッチの範囲を制限（真上・真下を向きすぎないように）
+        pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
     }
 
     // アニメーションループ
     function animate() {
         requestAnimationFrame(animate);
 
-        // カメラの向きを反映
-        camera.rotation.set(0, yaw, 0); // pitchも使う場合: camera.rotation.set(pitch, yaw, 0);
+        // カメラの向きを反映（上下左右両方）
+        camera.rotation.set(pitch, yaw, 0);
 
         // カメラ移動
         let direction = new THREE.Vector3();
