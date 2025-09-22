@@ -53,7 +53,7 @@ function init() {
 
     // FPS移動用の変数
     const move = { forward: false, backward: false, left: false, right: false };
-    const speed = 0.1;
+    let speed = 0.1;
 
     // キーボードイベント
     window.addEventListener('keydown', (e) => {
@@ -69,26 +69,90 @@ function init() {
         if (e.code === 'KeyD') move.right = false;
     });
 
-    // --- 視点切り替えUI追加 ---
-    const select = document.createElement('select');
-    select.style.position = 'absolute';
-    select.style.top = '10px';
-    select.style.left = '10px';
-    select.style.zIndex = 100;
-    select.innerHTML = `
-        <option value="fps">FPS視点</option>
-        <option value="tps">TPS視点</option>
-    `;
-    document.body.appendChild(select);
+    // --- 設定画面UI追加 ---
+    const settingsDiv = document.createElement('div');
+    settingsDiv.style.position = 'absolute';
+    settingsDiv.style.top = '10px';
+    settingsDiv.style.right = '10px';
+    settingsDiv.style.background = 'rgba(255,255,255,0.95)';
+    settingsDiv.style.padding = '16px';
+    settingsDiv.style.borderRadius = '8px';
+    settingsDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    settingsDiv.style.zIndex = 200;
+    settingsDiv.style.fontSize = '14px';
+    settingsDiv.style.minWidth = '180px';
 
+    // 設定画面の内容
+    settingsDiv.innerHTML = `
+        <b>設定</b><br>
+        <label>
+            <span>視点</span>
+            <select id="viewModeSelect">
+                <option value="fps">一人称視点（FPS）</option>
+                <option value="tps">三人称視点（TPS）</option>
+            </select>
+        </label>
+        <br><br>
+        <label>
+            <span>移動速度</span>
+            <input id="speedRange" type="range" min="0.05" max="0.5" step="0.01" value="0.1">
+            <span id="speedValue">0.10</span>
+        </label>
+        <br><br>
+        <button id="closeSettings">閉じる</button>
+    `;
+
+    // 設定画面の開閉ボタン
+    const openBtn = document.createElement('button');
+    openBtn.textContent = '設定';
+    openBtn.style.position = 'absolute';
+    openBtn.style.top = '10px';
+    openBtn.style.right = '10px';
+    openBtn.style.zIndex = 201;
+    openBtn.style.padding = '8px 16px';
+    openBtn.style.fontSize = '14px';
+    openBtn.style.borderRadius = '8px';
+    openBtn.style.border = 'none';
+    openBtn.style.background = '#eee';
+    openBtn.style.cursor = 'pointer';
+
+    document.body.appendChild(openBtn);
+    document.body.appendChild(settingsDiv);
+    settingsDiv.style.display = 'none';
+
+    openBtn.addEventListener('click', () => {
+        settingsDiv.style.display = '';
+        openBtn.style.display = 'none';
+    });
+    settingsDiv.querySelector('#closeSettings').addEventListener('click', () => {
+        settingsDiv.style.display = 'none';
+        openBtn.style.display = '';
+    });
+
+    // --- 視点切り替えUIを設定画面のセレクトボックスに変更 ---
     let viewMode = 'fps';
-    select.addEventListener('change', () => {
-        viewMode = select.value;
+    const viewModeSelect = settingsDiv.querySelector('#viewModeSelect');
+    viewModeSelect.value = viewMode;
+    viewModeSelect.addEventListener('change', () => {
+        viewMode = viewModeSelect.value;
         if (viewMode === 'fps') {
-            // FPS時はカメラをプレイヤー位置に戻す
             camera.position.set(playerPos.x, playerPos.y, playerPos.z);
         }
     });
+
+    // --- 移動速度設定 ---
+    // speedは既に宣言済みなので再宣言しない
+    const speedRange = settingsDiv.querySelector('#speedRange');
+    const speedValue = settingsDiv.querySelector('#speedValue');
+    speedRange.addEventListener('input', () => {
+        speed = parseFloat(speedRange.value);
+        speedValue.textContent = speed.toFixed(2);
+    });
+
+    // --- 旧セレクトボックス削除 ---
+    if (typeof select !== 'undefined') {
+        select.remove();
+    }
 
     // PointerLockでマウスキャプチャ
     canvasElement.addEventListener('click', () => {
