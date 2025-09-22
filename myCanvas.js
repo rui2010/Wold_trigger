@@ -25,8 +25,8 @@ function init() {
     let pitch = -0.18; // 少し下向き
 
     // 簡単な地面を追加
-    // 地面の色を明るく
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+    // 地面の色を緑色に変更
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x66cc66 });
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
@@ -141,7 +141,7 @@ function init() {
     });
 
     // --- 移動速度設定 ---
-    // speedは既に宣言済みなので再宣言しない
+    // speedは既に宣言済みので再宣言しない
     const speedRange = settingsDiv.querySelector('#speedRange');
     const speedValue = settingsDiv.querySelector('#speedValue');
     speedRange.addEventListener('input', () => {
@@ -176,6 +176,41 @@ function init() {
         // ピッチの範囲を制限（真上・真下を向きすぎないように）
         pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
     }
+
+    // --- ミニキャラクター表示用 ---
+    // ミニキャラ用canvasを右上に配置
+    const miniCanvas = document.createElement('canvas');
+    miniCanvas.width = 120;
+    miniCanvas.height = 120;
+    miniCanvas.style.position = 'absolute';
+    miniCanvas.style.top = '10px';
+    miniCanvas.style.right = '10px';
+    miniCanvas.style.zIndex = 300;
+    miniCanvas.style.background = 'rgba(255,255,255,0.7)';
+    miniCanvas.style.borderRadius = '8px';
+    miniCanvas.style.display = 'none';
+    document.body.appendChild(miniCanvas);
+
+    // ミニキャラ用Three.jsシーン
+    const miniRenderer = new THREE.WebGLRenderer({ canvas: miniCanvas, alpha: true, antialias: true });
+    miniRenderer.setClearColor(0x000000, 0);
+    miniRenderer.setSize(120, 120);
+    const miniScene = new THREE.Scene();
+    const miniCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    miniCamera.position.set(0, 5, 10);
+    miniCamera.lookAt(0, 2, 0);
+
+    // ミニキャラ本体（赤い箱）
+    const miniCharGeometry = new THREE.BoxGeometry(2, 4, 2);
+    const miniCharMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    const miniChar = new THREE.Mesh(miniCharGeometry, miniCharMaterial);
+    miniChar.position.y = 2;
+    miniScene.add(miniChar);
+
+    // ミニキャラ用ライト
+    const miniLight = new THREE.DirectionalLight(0xffffff, 1);
+    miniLight.position.set(5, 10, 5);
+    miniScene.add(miniLight);
 
     // アニメーションループ
     function animate() {
@@ -212,9 +247,16 @@ function init() {
             const moveVector = new THREE.Vector3(direction.x, 0, direction.z);
             moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
             playerPos.add(moveVector.multiplyScalar(speed));
+            miniCanvas.style.display = ''; // 動いているときミニキャラ表示
+        } else {
+            miniCanvas.style.display = 'none'; // 止まっているとき非表示
         }
 
         renderer.render(scene, camera);
+
+        // ミニキャラの向きとアニメーション（カメラのyawに合わせて回転）
+        miniChar.rotation.y = -yaw;
+        miniRenderer.render(miniScene, miniCamera);
     }
     animate();
 }
