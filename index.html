@@ -12,7 +12,7 @@
     </style>
   </head>
   <body>
-    <div id="info">WASDで移動</div>
+    <div id="info">WASDで移動・マウスドラッグで視点回転・クリックでマウスキャプチャ</div>
     <canvas id="myCanvas"></canvas>
     <script>
       window.addEventListener("DOMContentLoaded", init);
@@ -35,11 +35,15 @@
 
         // カメラを作成（FPS視点）
         const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-        camera.position.set(0, 2, 5);
+        // プレイヤーの仮想位置
+        const playerPos = new THREE.Vector3(0, 2, 5);
+        camera.position.copy(playerPos);
+        let yaw = 0;
+        let pitch = -0.18; // 少し下向き
 
-        // 地面
+        // 地面（緑色）
+        const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x66cc66 });
         const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
@@ -49,10 +53,24 @@
         light.position.set(10, 10, 10);
         scene.add(light);
 
-        // FPS移動用
-        const move = { forward: false, backward: false, left: false, right: false };
-        const speed = 0.1;
+        // 建物を赤色で広めに配置
+        for (let i = -2; i <= 2; i++) {
+          for (let j = -2; j <= 2; j++) {
+            if (i === 0 && j === 0) continue;
+            const h = 10;
+            const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
+            const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            building.position.set(i * 14, h / 2, j * 14);
+            scene.add(building);
+          }
+        }
 
+        // FPS移動用の変数
+        const move = { forward: false, backward: false, left: false, right: false };
+        let speed = 0.1;
+
+        // キーボードイベント
         window.addEventListener('keydown', (e) => {
           if (e.code === 'KeyW') move.forward = true;
           if (e.code === 'KeyS') move.backward = true;
@@ -66,12 +84,85 @@
           if (e.code === 'KeyD') move.right = false;
         });
 
-        // カメラの向き制御
-        let yaw = 0;
+        // 設定画面UI追加
+        const settingsDiv = document.createElement('div');
+        settingsDiv.style.position = 'absolute';
+        settingsDiv.style.top = '10px';
+        settingsDiv.style.right = '10px';
+        settingsDiv.style.background = 'rgba(255,255,255,0.95)';
+        settingsDiv.style.padding = '16px';
+        settingsDiv.style.borderRadius = '8px';
+        settingsDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        settingsDiv.style.zIndex = 200;
+        settingsDiv.style.fontSize = '14px';
+        settingsDiv.style.minWidth = '180px';
+        settingsDiv.innerHTML = `
+          <b>設定</b><br>
+          <label>
+              <span>視点</span>
+              <select id="viewModeSelect">
+                  <option value="fps">一人称視点（FPS）</option>
+                  <option value="tps">三人称視点（TPS）</option>
+              </select>
+          </label>
+          <br><br>
+          <label>
+              <span>移動速度</span>
+              <input id="speedRange" type="range" min="0.05" max="0.5" step="0.01" value="0.1">
+              <span id="speedValue">0.10</span>
+          </label>
+          <br><br>
+          <button id="closeSettings">閉じる</button>
+        `;
+        // 設定画面の開閉ボタン（左上）
+        const openBtn = document.createElement('button');
+        openBtn.textContent = '設定';
+        openBtn.style.position = 'absolute';
+        openBtn.style.top = '10px';
+        openBtn.style.left = '10px';
+        openBtn.style.zIndex = 201;
+        openBtn.style.padding = '8px 16px';
+        openBtn.style.fontSize = '14px';
+        openBtn.style.borderRadius = '8px';
+        openBtn.style.border = 'none';
+        openBtn.style.background = '#eee';
+        openBtn.style.cursor = 'pointer';
+        document.body.appendChild(openBtn);
+        document.body.appendChild(settingsDiv);
+        settingsDiv.style.display = 'none';
+        openBtn.addEventListener('click', () => {
+          settingsDiv.style.display = '';
+          openBtn.style.display = 'none';
+        });
+        settingsDiv.querySelector('#closeSettings').addEventListener('click', () => {
+          settingsDiv.style.display = 'none';
+          openBtn.style.display = '';
+        });
+
+        // 視点切り替え
+        let viewMode = 'fps';
+        const viewModeSelect = settingsDiv.querySelector('#viewModeSelect');
+        viewModeSelect.value = viewMode;
+        viewModeSelect.addEventListener('change', () => {
+          viewMode = viewModeSelect.value;
+          if (viewMode === 'fps') {
+            camera.position.set(playerPos.x, playerPos.y, playerPos.z);
+          }
+        });
+
+        // 移動速度設定
+        const speedRange = settingsDiv.querySelector('#speedRange');
+        const speedValue = settingsDiv.querySelector('#speedValue');
+        speedRange.addEventListener('input', () => {
+          speed = parseFloat(speedRange.value);
+          speedValue.textContent = speed.toFixed(2);
+        });
 
         // PointerLockでマウスキャプチャ
         canvasElement.addEventListener('click', () => {
-          canvasElement.requestPointerLock();
+          if (viewMode === 'fps') {
+            canvasElement.requestPointerLock();
+          }
         });
 
         document.addEventListener('pointerlockchange', () => {
@@ -85,14 +176,64 @@
         function onMouseMove(e) {
           const sensitivity = 0.002;
           yaw -= e.movementX * sensitivity;
+          pitch -= e.movementY * sensitivity;
+          pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
         }
+
+        // ミニキャラクター表示用
+        const miniCanvas = document.createElement('canvas');
+        miniCanvas.width = 120;
+        miniCanvas.height = 120;
+        miniCanvas.style.position = 'absolute';
+        miniCanvas.style.top = '10px';
+        miniCanvas.style.right = '10px';
+        miniCanvas.style.zIndex = 300;
+        miniCanvas.style.background = 'rgba(255,255,255,0.7)';
+        miniCanvas.style.borderRadius = '8px';
+        miniCanvas.style.display = 'none';
+        document.body.appendChild(miniCanvas);
+
+        const miniRenderer = new THREE.WebGLRenderer({ canvas: miniCanvas, alpha: true, antialias: true });
+        miniRenderer.setClearColor(0x000000, 0);
+        miniRenderer.setSize(120, 120);
+        const miniScene = new THREE.Scene();
+        const miniCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+        miniCamera.position.set(0, 5, 10);
+        miniCamera.lookAt(0, 2, 0);
+        const miniCharGeometry = new THREE.BoxGeometry(2, 4, 2);
+        const miniCharMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+        const miniChar = new THREE.Mesh(miniCharGeometry, miniCharMaterial);
+        miniChar.position.y = 2;
+        miniScene.add(miniChar);
+        const miniLight = new THREE.DirectionalLight(0xffffff, 1);
+        miniLight.position.set(5, 10, 5);
+        miniScene.add(miniLight);
 
         // アニメーションループ
         function animate() {
           requestAnimationFrame(animate);
 
-          camera.rotation.set(0, yaw, 0);
+          // 視点ごとにカメラ位置・向きを制御
+          if (viewMode === 'fps') {
+            camera.position.copy(playerPos);
+            camera.rotation.order = "YXZ";
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+            camera.rotation.z = 0;
+          } else if (viewMode === 'tps') {
+            const tpsDistance = 18;
+            const tpsPitch = pitch;
+            const tpsYaw = yaw;
+            const offset = new THREE.Vector3(
+              Math.sin(tpsYaw) * Math.cos(tpsPitch) * tpsDistance,
+              Math.sin(tpsPitch) * tpsDistance + 4,
+              Math.cos(tpsYaw) * Math.cos(tpsPitch) * tpsDistance
+            );
+            camera.position.copy(playerPos.clone().add(offset));
+            camera.lookAt(playerPos);
+          }
 
+          // 移動処理（プレイヤー位置を動かす）
           let direction = new THREE.Vector3();
           if (move.forward) direction.z -= 1;
           if (move.backward) direction.z += 1;
@@ -100,12 +241,25 @@
           if (move.right) direction.x += 1;
           direction.normalize();
           if (direction.length() > 0) {
-            const moveVector = new THREE.Vector3(direction.x, 0, direction.z);
-            moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-            camera.position.add(moveVector.multiplyScalar(speed));
+            let moveVector;
+            if (viewMode === 'fps') {
+              const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+              const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+              moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
+            } else {
+              moveVector = new THREE.Vector3(direction.x, 0, direction.z);
+              moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+            }
+            playerPos.add(moveVector.multiplyScalar(speed));
+            miniCanvas.style.display = '';
+          } else {
+            miniCanvas.style.display = 'none';
           }
 
           renderer.render(scene, camera);
+
+          miniChar.rotation.y = -yaw;
+          miniRenderer.render(miniScene, miniCamera);
         }
         animate();
       }
