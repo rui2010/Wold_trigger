@@ -9,14 +9,144 @@
         background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
         z-index: 10;
       }
+      #charamake {
+        position: absolute; left: 0; top: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.85); z-index: 1000; display: flex; align-items: center; justify-content: center;
+      }
+      #charamake-inner {
+        background: #fff; border-radius: 12px; padding: 32px 40px; min-width: 340px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.4); text-align: center;
+      }
+      #charamake label { display: block; margin: 16px 0 8px; }
+      #charamake input[type="color"] { width: 48px; height: 32px; border: none; }
+      #charamake select { font-size: 16px; }
+      #charamake-preview { margin: 16px auto; width: 120px; height: 160px; background: #eee; border-radius: 8px; }
+      #charamake button { margin-top: 24px; font-size: 18px; padding: 8px 32px; border-radius: 8px; border: none; background: #66cc66; color: #fff; cursor: pointer; }
     </style>
   </head>
   <body>
-    <div id="info">WASDで移動・マウスドラッグで視点回転・クリックでマウスキャプチャ</div>
+    <div id="info">WASDで移動・スペースでジャンプ・Shiftでしゃがみ・マウスドラッグで視点回転・クリックでマウスキャプチャ</div>
     <canvas id="myCanvas"></canvas>
+    <!-- キャラメイク画面 -->
+    <div id="charamake">
+      <div id="charamake-inner">
+        <h2>キャラクター作成</h2>
+        <label>体の色 <input type="color" id="bodyColor" value="#ff0000"></label>
+        <label>素材
+          <select id="materialType">
+            <option value="phong">つやあり</option>
+            <option value="lambert">つやなし</option>
+            <option value="basic">マット</option>
+          </select>
+        </label>
+        <label>右手
+          <select id="handType">
+            <option value="box">ボックス</option>
+            <option value="sphere">ボール</option>
+            <option value="blade">ブレード</option>
+          </select>
+        </label>
+        <div id="charamake-preview"></div>
+        <button id="charamake-start">ゲームスタート</button>
+      </div>
+    </div>
     <script>
-      window.addEventListener("DOMContentLoaded", init);
-      function init() {
+      // キャラメイク用プレビュー
+      let charaParams = {
+        color: "#ff0000",
+        material: "phong",
+        hand: "box"
+      };
+      let previewRenderer, previewScene, previewCamera, previewBody, previewHand;
+      function setupCharamakePreview() {
+        const previewDiv = document.getElementById('charamake-preview');
+        previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        previewRenderer.setClearColor(0x000000, 0);
+        previewRenderer.setSize(120, 160);
+        previewDiv.innerHTML = '';
+        previewDiv.appendChild(previewRenderer.domElement);
+        previewScene = new THREE.Scene();
+        previewCamera = new THREE.PerspectiveCamera(40, 120/160, 0.1, 100);
+        previewCamera.position.set(0, 4, 16);
+        previewCamera.lookAt(0, 4, 0);
+        // ライト
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 10, 10);
+        previewScene.add(light);
+        // キャラ本体
+        previewBody = new THREE.Mesh(
+          new THREE.BoxGeometry(2, 4, 2),
+          new THREE.MeshPhongMaterial({ color: charaParams.color })
+        );
+        previewBody.position.y = 4;
+        previewScene.add(previewBody);
+        // 右手
+        previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        previewHand.position.set(1.2, 3.2, 0);
+        previewScene.add(previewHand);
+        previewRender();
+      }
+      function previewRender() {
+        if (!previewRenderer) return;
+        previewRenderer.render(previewScene, previewCamera);
+      }
+      function updatePreview() {
+        // 色・素材・手を更新
+        previewBody.material.color.set(charaParams.color);
+        previewBody.material = getMaterial(charaParams.material, charaParams.color);
+        previewScene.remove(previewHand);
+        previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        previewHand.position.set(1.2, 3.2, 0);
+        previewScene.add(previewHand);
+        previewRender();
+      }
+      function getMaterial(type, color) {
+        if (type === "phong") return new THREE.MeshPhongMaterial({ color });
+        if (type === "lambert") return new THREE.MeshLambertMaterial({ color });
+        if (type === "basic") return new THREE.MeshBasicMaterial({ color });
+        return new THREE.MeshPhongMaterial({ color });
+      }
+      function createHandMesh(type, color, materialType) {
+        const mat = getMaterial(materialType, color);
+        if (type === "box") {
+          return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), mat);
+        } else if (type === "sphere") {
+          return new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), mat);
+        } else if (type === "blade") {
+          const group = new THREE.Group();
+          const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.7, 12), mat);
+          grip.position.y = -0.25;
+          group.add(grip);
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.2, 0.3), new THREE.MeshPhongMaterial({ color: 0xccccff }));
+          blade.position.y = 0.7;
+          group.add(blade);
+          return group;
+        }
+        return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), mat);
+      }
+      setupCharamakePreview();
+      document.getElementById('bodyColor').addEventListener('input', e => {
+        charaParams.color = e.target.value;
+        updatePreview();
+      });
+      document.getElementById('materialType').addEventListener('change', e => {
+        charaParams.material = e.target.value;
+        updatePreview();
+      });
+      document.getElementById('handType').addEventListener('change', e => {
+        charaParams.hand = e.target.value;
+        updatePreview();
+      });
+
+      // --- ゲーム本体 ---
+      let gameStarted = false;
+      document.getElementById('charamake-start').addEventListener('click', () => {
+        document.getElementById('charamake').style.display = 'none';
+        gameStarted = true;
+        startGame();
+      });
+
+      function startGame() {
         // レンダラーを作成
         const canvasElement = document.querySelector('#myCanvas');
         const renderer = new THREE.WebGLRenderer({
@@ -39,11 +169,14 @@
         const playerPos = new THREE.Vector3(0, 2, 5);
         let playerVel = new THREE.Vector3(0, 0, 0);
         let isOnGround = false;
-        const playerRadius = 1.2; // プレイヤーの当たり判定半径
-        const playerHeight = 3.8; // プレイヤーの高さ
+        let isCrouching = false;
+        const playerRadius = 1.2;
+        let playerHeight = 3.8;
+        let standHeight = 3.8;
+        let crouchHeight = 2.0;
         camera.position.copy(playerPos);
         let yaw = 0;
-        let pitch = -0.18; // 少し下向き
+        let pitch = -0.18;
 
         // 地面（緑色）
         const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x66cc66 });
@@ -64,7 +197,6 @@
             if (i === 0 && j === 0) continue;
             const h = 10;
             const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
-            // 赤色＋影を赤寄りに
             const buildingMaterial = new THREE.MeshPhongMaterial({
               color: 0xff0000,
               emissive: 0x660000,
@@ -76,6 +208,35 @@
             buildings.push({ mesh: building, height: h, x: i * 14, z: j * 14, size: 2 });
           }
         }
+
+        // --- ワールドトリガーのアステロイド（浮遊する立方体）を追加 ---
+        const asteroids = [];
+        for (let i = 0; i < 8; i++) {
+          const geo = new THREE.BoxGeometry(2, 2, 2);
+          const mat = new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x333366, emissiveIntensity: 0.5 });
+          const asteroid = new THREE.Mesh(geo, mat);
+          asteroid.position.set(
+            Math.random() * 60 - 30,
+            6 + Math.random() * 10,
+            Math.random() * 60 - 30
+          );
+          scene.add(asteroid);
+          asteroids.push(asteroid);
+        }
+
+        // --- キャラクター本体・右手 ---
+        // キャラ本体
+        const playerMeshGeometry = new THREE.BoxGeometry(2, standHeight, 2);
+        const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
+        const playerMesh = new THREE.Mesh(playerMeshGeometry, playerMeshMaterial);
+        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+        playerMesh.visible = false;
+        scene.add(playerMesh);
+
+        // 右手
+        let rightHandMesh = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        rightHandMesh.visible = false;
+        scene.add(rightHandMesh);
 
         // FPS移動用の変数
         const move = { forward: false, backward: false, left: false, right: false };
@@ -93,12 +254,14 @@
           if (e.code === 'KeyA') move.left = true;
           if (e.code === 'KeyD') move.right = true;
           if (e.code === 'Space') wantJump = true;
+          if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
         });
         window.addEventListener('keyup', (e) => {
           if (e.code === 'KeyW') move.forward = false;
           if (e.code === 'KeyS') move.backward = false;
           if (e.code === 'KeyA') move.left = false;
           if (e.code === 'KeyD') move.right = false;
+          if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = false;
         });
 
         // 設定画面UI追加
@@ -238,30 +401,23 @@
           }
           // 建物
           for (const b of buildings) {
-            // 水平方向XZでAABB判定
             const minX = b.x - 2, maxX = b.x + 2;
             const minZ = b.z - 2, maxZ = b.z + 2;
             const minY = 0, maxY = b.height;
-            // プレイヤーの足元位置
             const px = pos.x, py = pos.y - playerHeight / 2, pz = pos.z;
-            // プレイヤーのAABB
             const pMinX = px - playerRadius, pMaxX = px + playerRadius;
             const pMinZ = pz - playerRadius, pMaxZ = pz + playerRadius;
             const pMinY = py, pMaxY = py + playerHeight;
-
-            // 3D AABB衝突
             if (
               pMaxX > minX && pMinX < maxX &&
               pMaxZ > minZ && pMinZ < maxZ &&
               pMaxY > minY && pMinY < maxY
             ) {
-              // Y方向（上下）でめり込み補正
               if (py < maxY && py > minY && playerVel.y < 0) {
                 pos.y = maxY + playerHeight / 2;
                 playerVel.y = 0;
                 isOnGround = true;
               } else {
-                // XZ方向で押し戻す
                 const dx1 = Math.abs(pMaxX - minX);
                 const dx2 = Math.abs(pMinX - maxX);
                 const dz1 = Math.abs(pMaxZ - minZ);
@@ -279,6 +435,21 @@
         // アニメーションループ
         function animate() {
           requestAnimationFrame(animate);
+
+          // アステロイドを回転
+          for (const asteroid of asteroids) {
+            asteroid.rotation.x += 0.01;
+            asteroid.rotation.y += 0.013;
+          }
+
+          // しゃがみ処理
+          if (isCrouching) {
+            playerHeight = crouchHeight;
+            playerMesh.scale.y = crouchHeight / standHeight;
+          } else {
+            playerHeight = standHeight;
+            playerMesh.scale.y = 1;
+          }
 
           // 視点ごとにカメラ位置・向きを制御
           if (viewMode === 'fps') {
@@ -351,6 +522,24 @@
             miniCanvas.style.display = '';
           } else {
             miniCanvas.style.display = 'none';
+          }
+
+          // 三人称視点のときは自分キャラクターを表示し、位置を同期
+          if (viewMode === 'tps') {
+            playerMesh.visible = true;
+            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+            rightHandMesh.visible = false;
+          } else {
+            playerMesh.visible = false;
+            // 一人称視点のとき右手を表示
+            rightHandMesh.visible = true;
+            // 右手の位置・向きをカメラに追従
+            rightHandMesh.position.copy(camera.position);
+            // 右手をカメラの右前方に配置
+            const handOffset = new THREE.Vector3(0.6, -0.6, -1.1);
+            handOffset.applyEuler(camera.rotation);
+            rightHandMesh.position.add(handOffset);
+            rightHandMesh.rotation.copy(camera.rotation);
           }
 
           renderer.render(scene, camera);
