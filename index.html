@@ -225,18 +225,108 @@
         }
 
         // --- キャラクター本体・右手 ---
-        // キャラ本体
-        const playerMeshGeometry = new THREE.BoxGeometry(2, standHeight, 2);
+        // キャラ本体（人型：胴体・頭・両手・両足）
+        function createHumanMesh(material) {
+          const group = new THREE.Group();
+          // 胴体
+          const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.7), material);
+          body.position.y = 2.1;
+          group.add(body);
+          // 頭
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), material);
+          head.position.y = 3.5;
+          group.add(head);
+          // 右腕
+          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
+          rightArm.position.set(0.85, 2.5, 0);
+          rightArm.rotation.z = Math.PI / 10;
+          group.add(rightArm);
+          // 左腕
+          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
+          leftArm.position.set(-0.85, 2.5, 0);
+          leftArm.rotation.z = -Math.PI / 10;
+          group.add(leftArm);
+          // 右足
+          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.5, 12), material);
+          rightLeg.position.set(0.38, 0.75, 0);
+          group.add(rightLeg);
+          // 左足
+          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.5, 12), material);
+          leftLeg.position.set(-0.38, 0.75, 0);
+          group.add(leftLeg);
+          return group;
+        }
+
         const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
-        const playerMesh = new THREE.Mesh(playerMeshGeometry, playerMeshMaterial);
+        const playerMesh = createHumanMesh(playerMeshMaterial);
         playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
         playerMesh.visible = false;
         scene.add(playerMesh);
 
-        // 右手
-        let rightHandMesh = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        // 右手（人の手モデル）
+        function createRightHandMesh(material) {
+          const group = new THREE.Group();
+          // 手のひら
+          const palm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.7), material);
+          palm.position.set(0, 0, 0);
+          group.add(palm);
+          // 親指
+          const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.38, 8), material);
+          thumb.position.set(-0.23, 0.07, 0.18);
+          thumb.rotation.z = Math.PI / 2.5;
+          group.add(thumb);
+          // 4本指
+          for (let i = 0; i < 4; i++) {
+            const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.48, 8), material);
+            finger.position.set(-0.15 + i * 0.1, 0.13, 0.32);
+            finger.rotation.x = Math.PI / 2.1;
+            group.add(finger);
+          }
+          group.scale.set(1.1, 1.1, 1.1);
+          return group;
+        }
+        let rightHandMesh = createRightHandMesh(playerMeshMaterial);
         rightHandMesh.visible = false;
         scene.add(rightHandMesh);
+
+        // --- アステロイド弾丸 ---
+        const asteroidBullets = [];
+        let canShoot = true;
+        let loadedAsteroid = null;
+
+        // アステロイドを装填
+        function loadAsteroid() {
+          if (loadedAsteroid) return;
+          // 新しいアステロイド弾を作成
+          const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+          const mat = new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x333366, emissiveIntensity: 0.5 });
+          loadedAsteroid = new THREE.Mesh(geo, mat);
+          scene.add(loadedAsteroid);
+        }
+
+        // マウスクリックで発射
+        window.addEventListener('mousedown', (e) => {
+          if (viewMode === 'fps' && loadedAsteroid && canShoot) {
+            // カメラの前方に発射
+            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+            asteroidBullets.push({
+              mesh: loadedAsteroid,
+              velocity: dir.multiplyScalar(0.7).add(new THREE.Vector3(0, 0.05, 0)),
+              alive: true
+            });
+            loadedAsteroid = null;
+            canShoot = false;
+            setTimeout(() => { canShoot = true; loadAsteroid(); }, 400); // リロード
+          }
+        });
+
+        // Rキーで手動リロード
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'KeyR') loadAsteroid();
+        });
+
+        // ゲーム開始時に1発装填
+        loadAsteroid();
 
         // FPS移動用の変数
         const move = { forward: false, backward: false, left: false, right: false };
@@ -479,7 +569,7 @@
           if (move.right) direction.x += 1;
           direction.normalize();
 
-          // FPS移動ベクトル
+          // --- 三人称視点のときの移動方向修正 ---
           let moveVector = new THREE.Vector3();
           if (direction.length() > 0) {
             if (viewMode === 'fps') {
@@ -533,13 +623,35 @@
             playerMesh.visible = false;
             // 一人称視点のとき右手を表示
             rightHandMesh.visible = true;
-            // 右手の位置・向きをカメラに追従
             rightHandMesh.position.copy(camera.position);
-            // 右手をカメラの右前方に配置
             const handOffset = new THREE.Vector3(0.6, -0.6, -1.1);
             handOffset.applyEuler(camera.rotation);
             rightHandMesh.position.add(handOffset);
             rightHandMesh.rotation.copy(camera.rotation);
+          }
+
+          // アステロイド弾丸の移動
+          for (const bullet of asteroidBullets) {
+            if (!bullet.alive) continue;
+            bullet.mesh.position.add(bullet.velocity);
+            bullet.velocity.y += gravity * 0.04;
+            // 地面に落ちたら消す
+            if (bullet.mesh.position.y < 0) {
+              scene.remove(bullet.mesh);
+              bullet.alive = false;
+            }
+          }
+
+          // 装填中のアステロイドを右手の前に表示
+          if (viewMode === 'fps' && loadedAsteroid) {
+            loadedAsteroid.visible = true;
+            loadedAsteroid.position.copy(camera.position);
+            const offset = new THREE.Vector3(0.8, -0.3, -1.5);
+            offset.applyEuler(camera.rotation);
+            loadedAsteroid.position.add(offset);
+            loadedAsteroid.rotation.copy(camera.rotation);
+          } else if (loadedAsteroid) {
+            loadedAsteroid.visible = false;
           }
 
           renderer.render(scene, camera);
