@@ -11,35 +11,95 @@
         background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
         z-index: 10;
       }
-      #startBtn {
-        position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+      #startBtn, #triggerBtn, #charaBtn {
         font-size: 2rem; padding: 1em 2em; border-radius: 12px; border: none;
-        background: #66cc66; color: #fff; cursor: pointer; z-index: 100;
+        background: #66cc66; color: #fff; cursor: pointer; margin: 0.5em;
+      }
+      #menu {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+        display: flex; flex-direction: column; align-items: center; z-index: 100;
+      }
+      #opening {
+        position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+        background: #000; color: #fff; display: flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; z-index: 2000; flex-direction: column;
+        transition: opacity 1s;
+      }
+      #opening-logo {
+        font-size: 3.5rem; font-weight: bold; letter-spacing: 0.2em; margin-bottom: 1em;
+      }
+      #opening-fade {
+        opacity: 1; transition: opacity 1s;
       }
     </style>
   </head>
   <body>
-    <div id="info">WASD:移動 / スペース:ジャンプ / クリック:トリガー発射 / Shift:しゃがみ / マウス:視点<br>
+    <div id="info" style="display:none;">
+      WASD:移動 / スペース:ジャンプ / クリック:トリガー発射 / Shift:しゃがみ / マウス:視点<br>
       1:アステロイド 2:レイガスト 3:スコーピオン 4:イーグレット 5:バイパー 6:グラスホッパー<br>
       M:レーダー表示
     </div>
-    <button id="startBtn">ゲームスタート</button>
+    <!-- オープニング -->
+    <div id="opening">
+      <div id="opening-logo">WORLD TRIGGER</div>
+      <div id="opening-fade">ワールドトリガーへようこそ</div>
+    </div>
+    <!-- メニュー -->
+    <div id="menu" style="display:none;">
+      <button id="startBtn">ゲームスタート</button>
+      <button id="triggerBtn">トリガー設定</button>
+      <button id="charaBtn">キャラクター設定</button>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <!-- レーダー -->
     <canvas id="radar" width="180" height="180" style="position:absolute;right:20px;bottom:20px;z-index:50;display:none;background:rgba(0,0,0,0.7);border-radius:50%;"></canvas>
     <script>
-      // --- 基本セットアップ ---
+      // --- オープニング演出 ---
+      const opening = document.getElementById('opening');
+      const openingFade = document.getElementById('opening-fade');
+      const menu = document.getElementById('menu');
+      const info = document.getElementById('info');
+      const canvas = document.getElementById('gameCanvas');
+      canvas.style.display = 'none';
+
+      // オープニングアニメーション
+      setTimeout(() => {
+        openingFade.textContent = "BORDERシステム起動中...";
+      }, 1200);
+      setTimeout(() => {
+        openingFade.textContent = "トリオン体構築完了";
+      }, 2200);
+      setTimeout(() => {
+        openingFade.textContent = "ワールドトリガー ゲームへようこそ";
+      }, 3200);
+      setTimeout(() => {
+        opening.style.opacity = 0;
+      }, 4200);
+      setTimeout(() => {
+        opening.style.display = 'none';
+        menu.style.display = '';
+      }, 5200);
+
+      // --- メニュー画面 ---
       let started = false;
-      const startBtn = document.getElementById('startBtn');
-      startBtn.onclick = () => {
-        startBtn.style.display = 'none';
+      document.getElementById('startBtn').onclick = () => {
+        menu.style.display = 'none';
+        info.style.display = '';
+        canvas.style.display = '';
         started = true;
         initGame();
       };
+      document.getElementById('triggerBtn').onclick = () => {
+        alert("トリガー設定は未実装です");
+      };
+      document.getElementById('charaBtn').onclick = () => {
+        alert("キャラクター設定は未実装です");
+      };
 
+      // --- 基本セットアップ ---
       function initGame() {
         // --- THREE.jsセットアップ ---
-        const canvas = document.getElementById('gameCanvas');
+        // const canvas = document.getElementById('gameCanvas'); ← ここは不要
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setClearColor(0x222222);
         renderer.setSize(window.innerWidth, window.innerHeight);
