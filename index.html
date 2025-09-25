@@ -313,6 +313,7 @@
           for (let j = -2; j <= 2; j++) {
             if (i === 0 && j === 0) continue;
             const h = 10;
+            // 建物の色を赤色のみ（灰色アステロイドを消す）
             const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
             const buildingMaterial = new THREE.MeshPhongMaterial({
               color: 0xff0000,
@@ -327,101 +328,10 @@
         }
 
         // --- ワールドトリガーのアステロイド（浮遊する立方体）を追加 ---
+        // （建物以外の灰色アステロイドはここでのみ生成）
         const asteroids = [];
-        for (let i = 0; i < 8; i++) {
-          const geo = new THREE.BoxGeometry(2, 2, 2);
-          const mat = new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x333366, emissiveIntensity: 0.5 });
-          const asteroid = new THREE.Mesh(geo, mat);
-          asteroid.position.set(
-            Math.random() * 60 - 30,
-            6 + Math.random() * 10,
-            Math.random() * 60 - 30
-          );
-          scene.add(asteroid);
-          asteroids.push(asteroid);
-        }
-
-        // --- キャラクター本体・右手 ---
-        // キャラ本体（ワールドトリガーのキャラ風：胴体・頭・髪・顔・腕・足）
-        function createWorldTriggerCharacter(material, params) {
-          const group = new THREE.Group();
-          // 胴体（細身の長方形）
-          const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.4, 0.7), material);
-          body.position.y = 2.1;
-          group.add(body);
-          // 頭（球体）
-          const head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 18), material);
-          head.position.y = 3.6;
-          group.add(head);
-          // 髪（シンプルな前髪＋サイド）
-          const hairMat = new THREE.MeshPhongMaterial({ color: params.hairColor });
-          if (params.hairType === "short") {
-            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.7), hairMat);
-            hair.position.y = 4.0;
-            group.add(hair);
-          } else if (params.hairType === "long") {
-            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.1), hairMat);
-            hair.position.y = 3.8;
-            group.add(hair);
-          } else if (params.hairType === "spiky") {
-            for (let i = 0; i < 5; i++) {
-              const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 8), hairMat);
-              spike.position.set(Math.sin(i * 1.25) * 0.4, 4.2, Math.cos(i * 1.25) * 0.4);
-              spike.rotation.x = Math.PI / 2.5;
-              group.add(spike);
-            }
-          }
-          // 顔（目・口）
-          if (params.faceType === "normal" || params.faceType === "smile" || params.faceType === "angry") {
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-            leftEye.position.set(-0.18, 3.68, 0.62);
-            group.add(leftEye);
-            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-            rightEye.position.set(0.18, 3.68, 0.62);
-            group.add(rightEye);
-            // 口
-            if (params.faceType === "smile") {
-              const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 8, 16, Math.PI), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-              mouth.position.set(0, 3.45, 0.65);
-              mouth.rotation.x = Math.PI / 2;
-              group.add(mouth);
-            } else if (params.faceType === "angry") {
-              const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-              mouth.position.set(0, 3.44, 0.65);
-              group.add(mouth);
-            }
-          }
-          // 両腕（細め）
-          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), material);
-          rightArm.position.set(0.75, 2.5, 0);
-          rightArm.rotation.z = Math.PI / 10;
-          group.add(rightArm);
-          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), material);
-          leftArm.position.set(-0.75, 2.5, 0);
-          leftArm.rotation.z = -Math.PI / 10;
-          group.add(leftArm);
-          // 足（細め）
-          let legLen = 1.5;
-          if (params.legType === "long") legLen = 2.1;
-          if (params.legType === "short") legLen = 1.0;
-          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, legLen, 12), material);
-          rightLeg.position.set(0.32, legLen / 2, 0);
-          group.add(rightLeg);
-          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, legLen, 12), material);
-          leftLeg.position.set(-0.32, legLen / 2, 0);
-          group.add(leftLeg);
-          return group;
-        }
-
-        const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
-        const playerMesh = createWorldTriggerCharacter(playerMeshMaterial, charaParams);
-        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-        playerMesh.visible = false;
-        scene.add(playerMesh);
-
-        // 右手（人の手モデル）は非表示にする
-        let rightHandMesh = null;
+        // --- ここは建物の灰色アステロイドを生成しないので空ループに ---
+        // for (let i = 0; i < 0; i++) {}
 
         // --- アステロイド弾丸 ---
         const asteroidBullets = [];
@@ -429,6 +339,7 @@
         let loadedAsteroid = null;
         let isCharging = false;
         let chargeAsteroid = null;
+        let chargeReady = false; // 追加: チャージ完了フラグ
         let chargeStartTime = 0;
         let splitAsteroids = [];
         let isSplit = false;
@@ -442,21 +353,14 @@
             loadedAsteroid = null;
           }
           if (isCharging) return;
-          const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
-          const mat = new THREE.MeshPhongMaterial({ color, emissive: 0x333366, emissiveIntensity: 0.5 });
-          loadedAsteroid = new THREE.Mesh(geo, mat);
-          scene.add(loadedAsteroid);
+          // ここで灰色アステロイドは生成しない（建物の灰色アステロイドを消すため）
         }
 
-        // マウス長押しで黄緑色アステロイド
+        // マウス1回目クリックで黄緑色アステロイドを手元に出す
         window.addEventListener('mousedown', (e) => {
-          if (viewMode === 'fps' && !isCharging && canShoot) {
-            // 手元の灰色ブロックを消す
-            if (loadedAsteroid) {
-              scene.remove(loadedAsteroid);
-              loadedAsteroid = null;
-            }
+          if (viewMode === 'fps' && !isCharging && canShoot && !chargeAsteroid) {
             isCharging = true;
+            chargeReady = false;
             chargeStartTime = performance.now();
             // 黄緑色アステロイド
             const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
@@ -466,26 +370,30 @@
           }
         });
 
+        // マウス2回目クリックで発射
         window.addEventListener('mouseup', (e) => {
-          if (isCharging && !isSplit && !isLineMode) {
-            // 通常弾として発射
-            if (chargeAsteroid) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: chargeAsteroid,
-                velocity: dir.multiplyScalar(0.7),
-                alive: true,
-                isLine: false
-              });
-              chargeAsteroid = null;
-              isCharging = false;
-              canShoot = false;
-              setTimeout(() => { canShoot = true; loadAsteroid(); }, 400);
-            }
+          if (isCharging && !isSplit && !isLineMode && chargeAsteroid && !chargeReady) {
+            // 1回目のmouseupでチャージ完了
+            chargeReady = true;
+            return;
+          }
+          if (isCharging && !isSplit && !isLineMode && chargeAsteroid && chargeReady) {
+            // 2回目のmouseupで発射
+            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+            asteroidBullets.push({
+              mesh: chargeAsteroid,
+              velocity: dir.multiplyScalar(0.7),
+              alive: true,
+              isLine: false
+            });
+            chargeAsteroid = null;
+            isCharging = false;
+            chargeReady = false;
+            canShoot = false;
+            setTimeout(() => { canShoot = true; }, 400);
           } else if (isCharging && isSplit && !isLineMode) {
             // 分裂状態でクリック→線モード
             isLineMode = true;
-            // 線用オブジェクト生成
             for (const s of splitAsteroids) {
               scene.remove(s.mesh);
             }
@@ -511,7 +419,7 @@
             isLineMode = false;
             chargeAsteroid = null;
             canShoot = false;
-            setTimeout(() => { canShoot = true; loadAsteroid(); }, 400);
+            setTimeout(() => { canShoot = true; }, 400);
           }
         });
 
@@ -870,14 +778,7 @@
 
           // 装填中のアステロイド or チャージ中の黄緑アステロイド
           if (viewMode === 'fps') {
-            if (loadedAsteroid) {
-              loadedAsteroid.visible = true;
-              loadedAsteroid.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.8, -0.3, -1.5);
-              offset.applyEuler(camera.rotation);
-              loadedAsteroid.position.add(offset);
-              loadedAsteroid.rotation.copy(camera.rotation);
-            } else if (chargeAsteroid) {
+            if (chargeAsteroid) {
               chargeAsteroid.visible = true;
               chargeAsteroid.position.copy(camera.position);
               const offset = new THREE.Vector3(0.8, -0.3, -1.5);
