@@ -1,471 +1,300 @@
+<!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
+    <title>ワールドトリガー 3Dゲーム</title>
     <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; }
-      #myCanvas { display: block; background: #222; }
+      body { margin: 0; overflow: hidden; background: #222; }
       #info {
         position: absolute; top: 10px; left: 10px; color: #fff; font-size: 16px;
         background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
         z-index: 10;
       }
-      #charamake {
-        position: absolute; left: 0; top: 0; width: 100vw; height: 100vh;
-        background: rgba(0,0,0,0.85); z-index: 1000; display: flex; align-items: center; justify-content: center;
+      #startBtn {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+        font-size: 2rem; padding: 1em 2em; border-radius: 12px; border: none;
+        background: #66cc66; color: #fff; cursor: pointer; z-index: 100;
       }
-      #charamake-inner {
-        background: #fff; border-radius: 12px; padding: 32px 40px; min-width: 340px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.4); text-align: center;
-      }
-      #charamake label { display: block; margin: 16px 0 8px; }
-      #charamake input[type="color"] { width: 48px; height: 32px; border: none; }
-      #charamake select { font-size: 16px; }
-      #charamake-preview { margin: 16px auto; width: 120px; height: 160px; background: #eee; border-radius: 8px; }
-      #charamake button { margin-top: 24px; font-size: 18px; padding: 8px 32px; border-radius: 8px; border: none; background: #66cc66; color: #fff; cursor: pointer; }
     </style>
   </head>
   <body>
-    <div id="info">WASDで移動・スペースでジャンプ・Shiftでしゃがみ・マウスドラッグで視点回転・クリックでマウスキャプチャ</div>
-    <canvas id="myCanvas"></canvas>
-    <!-- キャラメイク画面 -->
-    <div id="charamake">
-      <div id="charamake-inner">
-        <h2>キャラクター作成</h2>
-        <label>髪の色 <input type="color" id="hairColor" value="#222222"></label>
-        <label>髪型
-          <select id="hairType">
-            <option value="short">ショート</option>
-            <option value="long">ロング</option>
-            <option value="spiky">スパイキー</option>
-          </select>
-        </label>
-        <label>顔
-          <select id="faceType">
-            <option value="normal">ノーマル</option>
-            <option value="smile">スマイル</option>
-            <option value="angry">怒り</option>
-          </select>
-        </label>
-        <label>体の色 <input type="color" id="bodyColor" value="#ff0000"></label>
-        <label>素材
-          <select id="materialType">
-            <option value="phong">つやあり</option>
-            <option value="lambert">つやなし</option>
-            <option value="basic">マット</option>
-          </select>
-        </label>
-        <label>足
-          <select id="legType">
-            <option value="normal">ノーマル</option>
-            <option value="long">ロング</option>
-            <option value="short">ショート</option>
-          </select>
-        </label>
-        <label>右手
-          <select id="handType">
-          </select>
-        </label>
-        <div id="charamake-preview"></div>
-        <button id="charamake-start">ゲームスタート</button>
-      </div>
+    <div id="info">WASD:移動 / スペース:ジャンプ / クリック:トリガー発射 / Shift:しゃがみ / マウス:視点<br>
+      1:アステロイド 2:レイガスト 3:スコーピオン 4:イーグレット 5:バイパー 6:グラスホッパー<br>
+      M:レーダー表示
     </div>
+    <button id="startBtn">ゲームスタート</button>
+    <canvas id="gameCanvas"></canvas>
+    <!-- レーダー -->
+    <canvas id="radar" width="180" height="180" style="position:absolute;right:20px;bottom:20px;z-index:50;display:none;background:rgba(0,0,0,0.7);border-radius:50%;"></canvas>
     <script>
-      // キャラメイク用プレビュー
-      let charaParams = {
-        color: "#ff0000",
-        material: "phong",
-        hand: "box",
-        hairColor: "#222222",
-        hairType: "short",
-        faceType: "normal",
-        legType: "normal"
+      // --- 基本セットアップ ---
+      let started = false;
+      const startBtn = document.getElementById('startBtn');
+      startBtn.onclick = () => {
+        startBtn.style.display = 'none';
+        started = true;
+        initGame();
       };
-      let previewRenderer, previewScene, previewCamera, previewBody, previewHand;
-      function setupCharamakePreview() {
-        const previewDiv = document.getElementById('charamake-preview');
-        previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        previewRenderer.setClearColor(0x000000, 0);
-        previewRenderer.setSize(120, 160);
-        previewDiv.innerHTML = '';
-        previewDiv.appendChild(previewRenderer.domElement);
-        previewScene = new THREE.Scene();
-        previewCamera = new THREE.PerspectiveCamera(40, 120/160, 0.1, 100);
-        previewCamera.position.set(0, 4, 16);
-        previewCamera.lookAt(0, 4, 0);
-        // ライト
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(10, 10, 10);
-        previewScene.add(light);
-        // キャラ本体（人型＋髪＋顔＋足）
-        previewBody = createHumanMeshPreview(
-          getMaterial(charaParams.material, charaParams.color),
-          charaParams
-        );
-        previewBody.position.y = 0;
-        previewScene.add(previewBody);
-        // 右手のプレビューを追加しない
-        // previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
-        // previewHand.position.set(0.8, 2.2, 0.5);
-        // previewScene.add(previewHand);
-        previewRender();
-      }
-      function previewRender() {
-        if (!previewRenderer) return;
-        previewRenderer.render(previewScene, previewCamera);
-      }
-      function updatePreview() {
-        previewScene.remove(previewBody);
-        previewBody = createHumanMeshPreview(
-          getMaterial(charaParams.material, charaParams.color),
-          charaParams
-        );
-        previewBody.position.y = 0;
-        previewScene.add(previewBody);
-        // 右手のプレビューを追加しない
-        // previewScene.remove(previewHand);
-        // previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
-        // previewHand.position.set(0.8, 2.2, 0.5);
-        // previewScene.add(previewHand);
-        previewRender();
-      }
-      // キャラメイク用人型プレビュー
-      function createHumanMeshPreview(material, params) {
-        const group = new THREE.Group();
-        // 胴体
-        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.7), material);
-        body.position.y = 2.1;
-        group.add(body);
-        // 頭
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), material);
-        head.position.y = 3.5;
-        group.add(head);
-        // 髪
-        const hairMat = new THREE.MeshPhongMaterial({ color: params.hairColor });
-        if (params.hairType === "short") {
-          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.7), hairMat);
-          hair.position.y = 3.9;
-          group.add(hair);
-        } else if (params.hairType === "long") {
-          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.1), hairMat);
-          hair.position.y = 3.7;
-          group.add(hair);
-        } else if (params.hairType === "spiky") {
-          for (let i = 0; i < 5; i++) {
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 8), hairMat);
-            spike.position.set(Math.sin(i * 1.25) * 0.4, 4.1, Math.cos(i * 1.25) * 0.4);
-            spike.rotation.x = Math.PI / 2.5;
-            group.add(spike);
-          }
-        }
-        // 顔（目・口）
-        if (params.faceType === "normal" || params.faceType === "smile" || params.faceType === "angry") {
-          const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-          const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-          leftEye.position.set(-0.18, 3.55, 0.57);
-          group.add(leftEye);
-          const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-          rightEye.position.set(0.18, 3.55, 0.57);
-          group.add(rightEye);
-          // 口
-          if (params.faceType === "smile") {
-            const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 8, 16, Math.PI), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-            mouth.position.set(0, 3.33, 0.58);
-            mouth.rotation.x = Math.PI / 2;
-            group.add(mouth);
-          } else if (params.faceType === "angry") {
-            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-            mouth.position.set(0, 3.32, 0.58);
-            group.add(mouth);
-          }
-        }
-        // 両腕
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
-        rightArm.position.set(0.85, 2.5, 0);
-        rightArm.rotation.z = Math.PI / 10;
-        group.add(rightArm);
-        const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
-        leftArm.position.set(-0.85, 2.5, 0);
-        leftArm.rotation.z = -Math.PI / 10;
-        group.add(leftArm);
-        // 足
-        let legLen = 1.5;
-        if (params.legType === "long") legLen = 2.1;
-        if (params.legType === "short") legLen = 1.0;
-        const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, legLen, 12), material);
-        rightLeg.position.set(0.38, legLen / 2, 0);
-        group.add(rightLeg);
-        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, legLen, 12), material);
-        leftLeg.position.set(-0.38, legLen / 2, 0);
-        group.add(leftLeg);
-        return group;
-      }
-      function getMaterial(type, color) {
-        if (type === "phong") return new THREE.MeshPhongMaterial({ color });
-        if (type === "lambert") return new THREE.MeshLambertMaterial({ color });
-        if (type === "basic") return new THREE.MeshBasicMaterial({ color });
-        return new THREE.MeshPhongMaterial({ color });
-      }
-      function createHandMesh(type, color, materialType) {
-        const mat = getMaterial(materialType, color);
-        if (type === "box") {
-          return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), mat);
-        } else if (type === "sphere") {
-          return new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), mat);
-        } else if (type === "blade") {
-          const group = new THREE.Group();
-          const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.7, 12), mat);
-          grip.position.y = -0.25;
-          group.add(grip);
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.2, 0.3), new THREE.MeshPhongMaterial({ color: 0xccccff }));
-          blade.position.y = 0.7;
-          group.add(blade);
-          return group;
-        }
-        return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.7), mat);
-      }
-      setupCharamakePreview();
-      document.getElementById('bodyColor').addEventListener('input', e => {
-        charaParams.color = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('materialType').addEventListener('change', e => {
-        charaParams.material = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('handType').addEventListener('change', e => {
-        charaParams.hand = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('hairColor').addEventListener('input', e => {
-        charaParams.hairColor = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('hairType').addEventListener('change', e => {
-        charaParams.hairType = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('faceType').addEventListener('change', e => {
-        charaParams.faceType = e.target.value;
-        updatePreview();
-      });
-      document.getElementById('legType').addEventListener('change', e => {
-        charaParams.legType = e.target.value;
-        updatePreview();
-      });
 
-      // --- ゲーム本体 ---
-      let gameStarted = false;
-      document.getElementById('charamake-start').addEventListener('click', () => {
-        document.getElementById('charamake').style.display = 'none';
-        gameStarted = true;
-        startGame();
-      });
+      function initGame() {
+        // --- THREE.jsセットアップ ---
+        const canvas = document.getElementById('gameCanvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setClearColor(0x222222);
+        renderer.setSize(window.innerWidth, window.innerHeight);
 
-      function startGame() {
-        // レンダラーを作成
-        const canvasElement = document.querySelector('#myCanvas');
-        const renderer = new THREE.WebGLRenderer({
-          antialias: true,
-          canvas: canvasElement,
-        });
-
-        // サイズ指定
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(width, height);
-
-        // シーンを作成
         const scene = new THREE.Scene();
 
-        // カメラを作成（FPS視点）
-        const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-        // プレイヤーの仮想位置と速度
-        const playerPos = new THREE.Vector3(0, 2, 5);
-        let playerVel = new THREE.Vector3(0, 0, 0);
-        let isOnGround = false;
-        let isCrouching = false;
-        const playerRadius = 1.2;
-        let playerHeight = 3.8;
-        let standHeight = 3.8;
-        let crouchHeight = 2.0;
-        camera.position.copy(playerPos);
-        let yaw = 0;
-        let pitch = -0.18;
-
-        // 地面（緑色）
-        const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x66cc66 });
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        scene.add(ground);
+        // カメラ
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 8);
 
         // ライト
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(10, 10, 10);
         scene.add(light);
 
-        // 建物を赤色で広めに配置＋影を赤寄りに
-        const buildings = [];
+        // 地面
+        const ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(100, 100),
+          new THREE.MeshPhongMaterial({ color: 0x66cc66 })
+        );
+        ground.rotation.x = -Math.PI/2;
+        scene.add(ground);
+
+        // --- キャラクター（空閑遊真風） ---
+        function createYuma() {
+          const group = new THREE.Group();
+          // 体
+          const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2, 0.6), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+          body.position.y = 2;
+          group.add(body);
+          // 頭
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 20), new THREE.MeshPhongMaterial({ color: 0xf8f8f8 }));
+          head.position.y = 3.4;
+          group.add(head);
+          // 髪（前髪・サイド・後ろ）
+          const hairMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
+          for (let i = 0; i < 3; i++) {
+            const bang = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), hairMat);
+            bang.position.set(-0.18 + i * 0.18, 4.0, 0.55);
+            bang.rotation.x = Math.PI / 1.7;
+            group.add(bang);
+          }
+          for (let i = 0; i < 2; i++) {
+            const side = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 10), hairMat);
+            side.position.set(i === 0 ? -0.38 : 0.38, 3.8, 0.38);
+            side.rotation.x = Math.PI / 1.5;
+            group.add(side);
+          }
+          for (let i = 0; i < 3; i++) {
+            const back = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 10), hairMat);
+            back.position.set(-0.18 + i * 0.18, 3.7, -0.45);
+            back.rotation.x = -Math.PI / 1.7;
+            group.add(back);
+          }
+          // 目
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+          const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+          leftEye.position.set(-0.16, 3.55, 0.62);
+          group.add(leftEye);
+          const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+          rightEye.position.set(0.16, 3.55, 0.62);
+          group.add(rightEye);
+          // 口
+          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+          mouth.position.set(0, 3.38, 0.63);
+          group.add(mouth);
+          // 両腕
+          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+          rightArm.position.set(0.65, 2.3, 0);
+          rightArm.rotation.z = Math.PI / 10;
+          group.add(rightArm);
+          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+          leftArm.position.set(-0.65, 2.3, 0);
+          leftArm.rotation.z = -Math.PI / 10;
+          group.add(leftArm);
+          // 足
+          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+          rightLeg.position.set(0.28, 0.6, 0);
+          group.add(rightLeg);
+          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+          leftLeg.position.set(-0.28, 0.6, 0);
+          group.add(leftLeg);
+          return group;
+        }
+        const player = createYuma();
+        scene.add(player);
+
+        // --- プレイヤー状態 ---
+        let playerPos = new THREE.Vector3(0, 2, 5);
+        let playerVel = new THREE.Vector3(0, 0, 0);
+        let isOnGround = false;
+        let isCrouching = false;
+        let yaw = 0, pitch = -0.18;
+        let viewMode = 'fps';
+
+        // --- 建物 ---
         for (let i = -2; i <= 2; i++) {
           for (let j = -2; j <= 2; j++) {
             if (i === 0 && j === 0) continue;
             const h = 10;
-            // 建物の色を赤色のみ（灰色アステロイドを消す）
-            const buildingGeometry = new THREE.BoxGeometry(4, h, 4);
-            const buildingMaterial = new THREE.MeshPhongMaterial({
-              color: 0xff0000,
-              emissive: 0x660000,
-              emissiveIntensity: 0.35
-            });
-            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            const building = new THREE.Mesh(
+              new THREE.BoxGeometry(4, h, 4),
+              new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0x660000, emissiveIntensity: 0.35 })
+            );
             building.position.set(i * 14, h / 2, j * 14);
             scene.add(building);
-            buildings.push({ mesh: building, height: h, x: i * 14, z: j * 14, size: 2 });
           }
         }
 
-        // --- ワールドトリガーのアステロイド（浮遊する立方体）を追加 ---
-        // （建物以外の灰色アステロイドはここでのみ生成）
-        const asteroids = [];
-        // --- ここは建物の灰色アステロイドを生成しないので空ループに ---
-        // for (let i = 0; i < 0; i++) {}
+        // --- 武器タイプ
+        const WEAPON_ASTEROID = "asteroid";
+        const WEAPON_RAYGUST = "raygust";
+        const WEAPON_SCORPION = "scorpion";
+        const WEAPON_EGRETS = "egret";
+        const WEAPON_VIPER = "viper";
+        const WEAPON_GRASSHOPPER = "grasshopper";
+        let weaponType = WEAPON_ASTEROID;
 
-        // --- アステロイド弾丸 ---
-        const asteroidBullets = [];
-        let canShoot = true;
-        let loadedAsteroid = null;
-        let isCharging = false;
-        let chargeAsteroid = null;
-        let chargeReady = false; // 追加: チャージ完了フラグ
-        let chargeStartTime = 0;
-        let splitAsteroids = [];
-        let isSplit = false;
-        let isLineMode = false;
-
-        // アステロイドを装填
-        function loadAsteroid(color = 0xcccccc) {
-          // 手元の灰色ブロックを消す
-          if (loadedAsteroid) {
-            scene.remove(loadedAsteroid);
-            loadedAsteroid = null;
-          }
-          // ここで灰色アステロイドは生成しない
-        }
-
-        // クリックしたら黄緑色のブロックを出現させるだけ
-        window.addEventListener('mousedown', (e) => {
-          if (viewMode === 'fps' && !isCharging && canShoot && !chargeAsteroid) {
-            // クリック前に灰色のブロックを消す
-            if (loadedAsteroid) {
-              scene.remove(loadedAsteroid);
-              loadedAsteroid = null;
-            }
-            isCharging = true;
-            chargeReady = false;
-            chargeStartTime = performance.now();
-            // 黄緑色アステロイド
-            const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5 });
-            chargeAsteroid = new THREE.Mesh(geo, mat);
-            scene.add(chargeAsteroid);
-          }
+        // 武器切り替え
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Digit1') weaponType = WEAPON_ASTEROID;
+          if (e.code === 'Digit2') weaponType = WEAPON_RAYGUST;
+          if (e.code === 'Digit3') weaponType = WEAPON_SCORPION;
+          if (e.code === 'Digit4') weaponType = WEAPON_EGRETS;
+          if (e.code === 'Digit5') weaponType = WEAPON_VIPER;
+          if (e.code === 'Digit6') weaponType = WEAPON_GRASSHOPPER;
         });
 
-        // マウス2回目クリックで発射
-        window.addEventListener('mouseup', (e) => {
-          if (isCharging && !isSplit && !isLineMode && chargeAsteroid && !chargeReady) {
-            // 1回目のmouseupでチャージ完了
-            chargeReady = true;
-            return;
+        // --- トリガー（武器）発射 ---
+        const asteroidBullets = [];
+        let canShoot = true;
+        let isCharging = false;
+        let chargeAsteroid = null;
+        let chargeReady = false;
+        let raygustMesh = null;
+        let scorpionMesh = null;
+        let grasshopperMesh = null;
+
+        window.addEventListener('mousedown', (e) => {
+          if (viewMode === 'fps' && !isCharging && canShoot && !chargeAsteroid) {
+            isCharging = true;
+            chargeReady = false;
+            if (weaponType === WEAPON_ASTEROID) {
+              // アステロイド
+              const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5 });
+              chargeAsteroid = new THREE.Mesh(geo, mat);
+              scene.add(chargeAsteroid);
+            } else if (weaponType === WEAPON_RAYGUST) {
+              // レイガスト（盾）
+              const geo = new THREE.BoxGeometry(0.5, 1.1, 0.15);
+              const mat = new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 });
+              raygustMesh = new THREE.Mesh(geo, mat);
+              scene.add(raygustMesh);
+            } else if (weaponType === WEAPON_SCORPION) {
+              // スコーピオン（刃）
+              const geo = new THREE.BoxGeometry(0.1, 0.7, 0.18);
+              const mat = new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 });
+              scorpionMesh = new THREE.Mesh(geo, mat);
+              scene.add(scorpionMesh);
+            } else if (weaponType === WEAPON_EGRETS) {
+              // イーグレット（狙撃銃）
+              const geo = new THREE.BoxGeometry(0.1, 0.1, 1.2);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+              chargeAsteroid = new THREE.Mesh(geo, mat);
+              scene.add(chargeAsteroid);
+            } else if (weaponType === WEAPON_VIPER) {
+              // バイパー（曲射弾：見た目はアステロイドと同じ）
+              const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+              const mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x664400, emissiveIntensity: 0.5 });
+              chargeAsteroid = new THREE.Mesh(geo, mat);
+              scene.add(chargeAsteroid);
+            } else if (weaponType === WEAPON_GRASSHOPPER) {
+              // グラスホッパー（ジャンプパネル）
+              const geo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x33ff66, emissive: 0x006633, emissiveIntensity: 0.7 });
+              grasshopperMesh = new THREE.Mesh(geo, mat);
+              scene.add(grasshopperMesh);
+            }
           }
-          if (isCharging && !isSplit && !isLineMode && chargeAsteroid && chargeReady) {
-            // 2回目のmouseupで発射
+        });
+        window.addEventListener('mouseup', (e) => {
+          if (!isCharging) return;
+          if (weaponType === WEAPON_ASTEROID && chargeAsteroid) {
+            if (!chargeReady) { chargeReady = true; return; }
+            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+            asteroidBullets.push({
+              mesh: chargeAsteroid,
+              velocity: dir.multiplyScalar(0.7),
+              alive: true
+            });
+            chargeAsteroid = null;
+            isCharging = false;
+            chargeReady = false;
+            canShoot = false;
+            setTimeout(() => { canShoot = true; }, 400);
+          } else if (weaponType === WEAPON_RAYGUST && raygustMesh) {
+            // レイガストは盾を前に出すだけ
+            isCharging = false;
+            setTimeout(() => {
+              if (raygustMesh) {
+                scene.remove(raygustMesh);
+                raygustMesh = null;
+              }
+            }, 500);
+          } else if (weaponType === WEAPON_SCORPION && scorpionMesh) {
+            // スコーピオンは刃を一瞬出す
+            isCharging = false;
+            setTimeout(() => {
+              if (scorpionMesh) {
+                scene.remove(scorpionMesh);
+                scorpionMesh = null;
+              }
+            }, 350);
+          } else if (weaponType === WEAPON_EGRETS && chargeAsteroid) {
+            // イーグレットは直線弾
+            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+            asteroidBullets.push({
+              mesh: chargeAsteroid,
+              velocity: dir.multiplyScalar(2.0),
+              alive: true
+            });
+            chargeAsteroid = null;
+            isCharging = false;
+            canShoot = false;
+            setTimeout(() => { canShoot = true; }, 600);
+          } else if (weaponType === WEAPON_VIPER && chargeAsteroid) {
+            // バイパーは曲射
             const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
             asteroidBullets.push({
               mesh: chargeAsteroid,
               velocity: dir.multiplyScalar(0.7),
               alive: true,
-              isLine: false
+              viper: true,
+              viperStep: 0
             });
             chargeAsteroid = null;
             isCharging = false;
-            chargeReady = false;
             canShoot = false;
             setTimeout(() => { canShoot = true; }, 400);
-          } else if (isCharging && isSplit && !isLineMode) {
-            // 分裂状態でクリック→線モード
-            isLineMode = true;
-            for (const s of splitAsteroids) {
-              scene.remove(s.mesh);
-            }
-            splitAsteroids = [];
-            // 線を作成
-            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-            const lineMat = new THREE.MeshBasicMaterial({ color: 0x99ff66 });
-            const lineGeo = new THREE.CylinderGeometry(0.12, 0.12, 12, 8);
-            const line = new THREE.Mesh(lineGeo, lineMat);
-            line.position.copy(camera.position);
-            const offset = new THREE.Vector3(0.8, -0.3, -1.5).applyEuler(camera.rotation);
-            line.position.add(offset).add(dir.clone().multiplyScalar(6));
-            line.rotation.copy(camera.rotation);
-            scene.add(line);
-            asteroidBullets.push({
-              mesh: line,
-              velocity: dir.multiplyScalar(1.5),
-              alive: true,
-              isLine: true
-            });
+          } else if (weaponType === WEAPON_GRASSHOPPER && grasshopperMesh) {
+            // グラスホッパーはジャンプ
             isCharging = false;
-            isSplit = false;
-            isLineMode = false;
-            chargeAsteroid = null;
-            canShoot = false;
-            setTimeout(() => { canShoot = true; }, 400);
+            scene.remove(grasshopperMesh);
+            grasshopperMesh = null;
+            playerVel.y = 0.38;
           }
         });
 
-        // Fキーで分裂
-        window.addEventListener('keydown', (e) => {
-          // ...existing code...
-          if (e.code === 'KeyR') loadAsteroid();
-          if (e.code === 'KeyF' && isCharging && !isSplit && chargeAsteroid) {
-            // 分裂
-            isSplit = true;
-            // 8方向に分裂
-            splitAsteroids = [];
-            for (let i = 0; i < 8; i++) {
-              const angle = (Math.PI * 2 / 8) * i;
-              const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5 });
-              const s = new THREE.Mesh(geo, mat);
-              s.position.copy(chargeAsteroid.position);
-              scene.add(s);
-              splitAsteroids.push({
-                mesh: s,
-                velocity: new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)).applyEuler(camera.rotation).normalize().multiplyScalar(0.7),
-                alive: true,
-                isLine: false
-              });
-            }
-            scene.remove(chargeAsteroid);
-            chargeAsteroid = null;
-          }
-        });
-
-        // ゲーム開始時に1発装填
-        loadAsteroid();
-
-        // FPS移動用の変数
+        // --- 入力 ---
         const move = { forward: false, backward: false, left: false, right: false };
-        let speed = 0.1;
-
-        // 重力・ジャンプ設定
-        const gravity = -0.45;
-        const jumpVel = 0.18;
+        let speed = 0.13;
+        let gravity = -0.45;
+        let jumpVel = 0.18;
         let wantJump = false;
-
-        // キーボードイベント
         window.addEventListener('keydown', (e) => {
           if (e.code === 'KeyW') move.forward = true;
           if (e.code === 'KeyS') move.backward = true;
@@ -481,96 +310,16 @@
           if (e.code === 'KeyD') move.right = false;
           if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = false;
         });
-
-        // 設定画面UI追加
-        const settingsDiv = document.createElement('div');
-        settingsDiv.style.position = 'absolute';
-        settingsDiv.style.top = '10px';
-        settingsDiv.style.right = '10px';
-        settingsDiv.style.background = 'rgba(255,255,255,0.95)';
-        settingsDiv.style.padding = '16px';
-        settingsDiv.style.borderRadius = '8px';
-        settingsDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-        settingsDiv.style.zIndex = 200;
-        settingsDiv.style.fontSize = '14px';
-        settingsDiv.style.minWidth = '180px';
-        settingsDiv.innerHTML = `
-          <b>設定</b><br>
-          <label>
-              <span>視点</span>
-              <select id="viewModeSelect">
-                  <option value="fps">一人称視点（FPS）</option>
-                  <option value="tps">三人称視点（TPS）</option>
-              </select>
-          </label>
-          <br><br>
-          <label>
-              <span>移動速度</span>
-              <input id="speedRange" type="range" min="0.05" max="0.5" step="0.01" value="0.1">
-              <span id="speedValue">0.10</span>
-          </label>
-          <br><br>
-          <button id="closeSettings">閉じる</button>
-        `;
-        // 設定画面の開閉ボタン（左上）
-        const openBtn = document.createElement('button');
-        openBtn.textContent = '設定';
-        openBtn.style.position = 'absolute';
-        openBtn.style.top = '10px';
-        openBtn.style.left = '10px';
-        openBtn.style.zIndex = 201;
-        openBtn.style.padding = '8px 16px';
-        openBtn.style.fontSize = '14px';
-        openBtn.style.borderRadius = '8px';
-        openBtn.style.border = 'none';
-        openBtn.style.background = '#eee';
-        openBtn.style.cursor = 'pointer';
-        document.body.appendChild(openBtn);
-        document.body.appendChild(settingsDiv);
-        settingsDiv.style.display = 'none';
-        openBtn.addEventListener('click', () => {
-          settingsDiv.style.display = '';
-          openBtn.style.display = 'none';
+        canvas.addEventListener('click', () => {
+          if (viewMode === 'fps') canvas.requestPointerLock();
         });
-        settingsDiv.querySelector('#closeSettings').addEventListener('click', () => {
-          settingsDiv.style.display = 'none';
-          openBtn.style.display = '';
-        });
-
-        // 視点切り替え
-        let viewMode = 'fps';
-        const viewModeSelect = settingsDiv.querySelector('#viewModeSelect');
-        viewModeSelect.value = viewMode;
-        viewModeSelect.addEventListener('change', () => {
-          viewMode = viewModeSelect.value;
-          if (viewMode === 'fps') {
-            camera.position.set(playerPos.x, playerPos.y, playerPos.z);
-          }
-        });
-
-        // 移動速度設定
-        const speedRange = settingsDiv.querySelector('#speedRange');
-        const speedValue = settingsDiv.querySelector('#speedValue');
-        speedRange.addEventListener('input', () => {
-          speed = parseFloat(speedRange.value);
-          speedValue.textContent = speed.toFixed(2);
-        });
-
-        // PointerLockでマウスキャプチャ
-        canvasElement.addEventListener('click', () => {
-          if (viewMode === 'fps') {
-            canvasElement.requestPointerLock();
-          }
-        });
-
         document.addEventListener('pointerlockchange', () => {
-          if (document.pointerLockElement === canvasElement) {
+          if (document.pointerLockElement === canvas) {
             document.addEventListener('mousemove', onMouseMove, false);
           } else {
             document.removeEventListener('mousemove', onMouseMove, false);
           }
         });
-
         function onMouseMove(e) {
           const sensitivity = 0.002;
           yaw -= e.movementX * sensitivity;
@@ -578,290 +327,191 @@
           pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
         }
 
-        // ミニキャラクター表示用
-        const miniCanvas = document.createElement('canvas');
-        miniCanvas.width = 120;
-        miniCanvas.height = 120;
-        miniCanvas.style.position = 'absolute';
-        miniCanvas.style.top = '10px';
-        miniCanvas.style.right = '10px';
-        miniCanvas.style.zIndex = 300;
-        miniCanvas.style.background = 'rgba(255,255,255,0.7)';
-        miniCanvas.style.borderRadius = '8px';
-        miniCanvas.style.display = 'none';
-        document.body.appendChild(miniCanvas);
-
-        const miniRenderer = new THREE.WebGLRenderer({ canvas: miniCanvas, alpha: true, antialias: true });
-        miniRenderer.setClearColor(0x000000, 0);
-        miniRenderer.setSize(120, 120);
-        const miniScene = new THREE.Scene();
-        const miniCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-        miniCamera.position.set(0, 5, 10);
-        miniCamera.lookAt(0, 2, 0);
-        const miniCharGeometry = new THREE.BoxGeometry(2, 4, 2);
-        const miniCharMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-        const miniChar = new THREE.Mesh(miniCharGeometry, miniCharMaterial);
-        miniChar.position.y = 2;
-        miniScene.add(miniChar);
-        const miniLight = new THREE.DirectionalLight(0xffffff, 1);
-        miniLight.position.set(5, 10, 5);
-        miniScene.add(miniLight);
-
-        // キャラ本体（空閑遊真風モデル）
-        function createYumaKugaCharacter(material, params) {
-          const group = new THREE.Group();
-          // 胴体（細身、やや短め）
-          const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.0, 0.65), material);
-          body.position.y = 2.0;
-          group.add(body);
-          // 頭（やや大きめ、白髪）
-          const headMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
-          const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 20), headMat);
-          head.position.y = 3.4;
-          group.add(head);
-          // 髪（空閑遊真の特徴的な白髪・前髪・サイド）
-          const hairMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
-          // 前髪
-          for (let i = 0; i < 3; i++) {
-            const bang = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), hairMat);
-            bang.position.set(-0.18 + i * 0.18, 4.0, 0.55);
-            bang.rotation.x = Math.PI / 1.7;
-            group.add(bang);
-          }
-          // サイド髪
-          for (let i = 0; i < 2; i++) {
-            const side = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 10), hairMat);
-            side.position.set(i === 0 ? -0.38 : 0.38, 3.8, 0.38);
-            side.rotation.x = Math.PI / 1.5;
-            group.add(side);
-          }
-          // 後頭部髪
-          for (let i = 0; i < 3; i++) {
-            const back = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 10), hairMat);
-            back.position.set(-0.18 + i * 0.18, 3.7, -0.45);
-            back.rotation.x = -Math.PI / 1.7;
-            group.add(back);
-          }
-          // 目（赤色）
-          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-          const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-          leftEye.position.set(-0.16, 3.55, 0.62);
-          group.add(leftEye);
-          const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-          rightEye.position.set(0.16, 3.55, 0.62);
-          group.add(rightEye);
-          // 口（小さめ）
-          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-          mouth.position.set(0, 3.38, 0.63);
-          group.add(mouth);
-          // 両腕（細め）
-          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), material);
-          rightArm.position.set(0.65, 2.3, 0);
-          rightArm.rotation.z = Math.PI / 10;
-          group.add(rightArm);
-          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), material);
-          leftArm.position.set(-0.65, 2.3, 0);
-          leftArm.rotation.z = -Math.PI / 10;
-          group.add(leftArm);
-          // 足（細め、短め）
-          let legLen = 1.2;
-          if (params.legType === "long") legLen = 1.7;
-          if (params.legType === "short") legLen = 0.8;
-          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, legLen, 12), material);
-          rightLeg.position.set(0.28, legLen / 2, 0);
-          group.add(rightLeg);
-          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, legLen, 12), material);
-          leftLeg.position.set(-0.28, legLen / 2, 0);
-          group.add(leftLeg);
-          return group;
-        }
-
-        const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
-        const playerMesh = createYumaKugaCharacter(playerMeshMaterial, charaParams);
-        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-        playerMesh.visible = false;
-        scene.add(playerMesh);
-
-        // --- アステロイド弾丸関連 ---
-        // アステロイドの初期位置
-        function resetAsteroidPosition(asteroid) {
-          asteroid.mesh.position.set(0, 10, -20 - Math.random() * 10);
-          asteroid.alive = true;
-        }
-
-        // アステロイドを定期的に生成
-        function spawnAsteroid() {
-          const geo = new THREE.BoxGeometry(1, 1, 1);
-          const mat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
-          const asteroid = {
-            mesh: new THREE.Mesh(geo, mat),
-            alive: true,
-            // 追加: アステロイドのサイズ
-            size: 1 + Math.random() * 2
-          };
-          scene.add(asteroid.mesh);
-          asteroids.push(asteroid);
-          resetAsteroidPosition(asteroid);
-        }
-        setInterval(spawnAsteroid, 1500);
-
-        // アステロイドの衝突判定
-        function checkAsteroidCollision(asteroid) {
-          const dist = asteroid.mesh.position.distanceTo(playerPos);
-          if (dist < asteroid.size + playerRadius) {
-            // 衝突したらゲームオーバー
-            alert("ゲームオーバー");
-            document.location.reload();
-          }
-        }
-
         // --- ゲームループ ---
         function animate() {
           requestAnimationFrame(animate);
 
-          // アステロイドを回転
-          for (const asteroid of asteroids) {
-            asteroid.rotation.x += 0.01;
-            asteroid.rotation.y += 0.013;
-          }
+          // キャラ位置
+          player.position.set(playerPos.x, playerPos.y, playerPos.z);
 
-          // しゃがみ処理
-          if (isCrouching) {
-            playerHeight = crouchHeight;
-            playerMesh.scale.y = crouchHeight / standHeight;
-          } else {
-            playerHeight = standHeight;
-            playerMesh.scale.y = 1;
-          }
-
-          // 視点ごとにカメラ位置・向きを制御
+          // カメラ
           if (viewMode === 'fps') {
             camera.position.copy(playerPos);
             camera.rotation.order = "YXZ";
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
             camera.rotation.z = 0;
-          } else if (viewMode === 'tps') {
-            // カメラをキャラの背後に固定
-            const tpsDistance = 8;
-            const tpsHeight = 3.5;
-            // キャラの向き（進行方向 or yaw）で背後に配置
-            const backYaw = yaw;
-            const offset = new THREE.Vector3(
-              Math.sin(backYaw) * tpsDistance,
-              tpsHeight,
-              Math.cos(backYaw) * tpsDistance
-            );
-            camera.position.copy(playerPos.clone().add(offset));
-            camera.lookAt(playerPos.x, playerPos.y + 1.5, playerPos.z);
+          } else {
+            // TPS未実装
           }
 
-          // 移動処理（プレイヤー位置を動かす）
+          // 移動
           let direction = new THREE.Vector3();
-          if (move.forward) direction.z -= 1; // Wで前進
-          if (move.backward) direction.z += 1; // Sで後退
+          if (move.forward) direction.z -= 1;
+          if (move.backward) direction.z += 1;
           if (move.left) direction.x -= 1;
           if (move.right) direction.x += 1;
           direction.normalize();
-
-          // --- 三人称視点のときの移動方向修正 ---
-          // Wで前進, Sで後退になるように修正
           let moveVector = new THREE.Vector3();
           if (direction.length() > 0) {
-            if (viewMode === 'fps') {
-              const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
-              const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
-              moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
-            } else {
-              moveVector = new THREE.Vector3(direction.x, 0, direction.z);
-              moveVector.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-            }
+            const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+            const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+            moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
           }
-
           // ジャンプ
           if (wantJump && isOnGround) {
             playerVel.y = jumpVel;
             isOnGround = false;
           }
           wantJump = false;
-
           // 重力
           playerVel.y += gravity * 0.5;
-
           // 移動速度
           playerVel.x = moveVector.x * speed;
           playerVel.z = moveVector.z * speed;
-
           // 位置更新
           playerPos.add(playerVel);
+          // 地面
+          if (playerPos.y < 1.0) {
+            playerPos.y = 1.0;
+            playerVel.y = 0;
+            isOnGround = true;
+          } else {
+            isOnGround = false;
+          }
 
-          // コリジョン
-          checkCollision(playerPos);
-
-          // カメラをプレイヤー位置に
+          // 武器の手元表示
           if (viewMode === 'fps') {
-            camera.position.copy(playerPos);
-          }
-
-          // ミニキャラ表示
-          if (moveVector.length() > 0 || Math.abs(playerVel.y) > 0.01) {
-            miniCanvas.style.display = '';
-          } else {
-            miniCanvas.style.display = 'none';
-          }
-
-          // 三人称視点のときは自分キャラクターを表示し、位置を同期
-          if (viewMode === 'tps') {
-            playerMesh.visible = true;
-            playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-            // 右手は非表示
-            if (rightHandMesh) rightHandMesh.visible = false;
-          } else {
-            playerMesh.visible = false;
-            // 一人称視点のとき右手は表示しない
-            if (rightHandMesh) rightHandMesh.visible = false;
+            if (weaponType === WEAPON_ASTEROID && chargeAsteroid) {
+              chargeAsteroid.visible = true;
+              chargeAsteroid.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
+              offset.applyEuler(camera.rotation);
+              chargeAsteroid.position.add(offset);
+              chargeAsteroid.rotation.copy(camera.rotation);
+            } else if (weaponType === WEAPON_RAYGUST && raygustMesh) {
+              raygustMesh.visible = true;
+              raygustMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.5, -0.2, -1.0);
+              offset.applyEuler(camera.rotation);
+              raygustMesh.position.add(offset);
+              raygustMesh.rotation.copy(camera.rotation);
+            } else if (weaponType === WEAPON_SCORPION && scorpionMesh) {
+              scorpionMesh.visible = true;
+              scorpionMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.4, -0.3, -1.0);
+              offset.applyEuler(camera.rotation);
+              scorpionMesh.position.add(offset);
+              scorpionMesh.rotation.copy(camera.rotation);
+            } else if (weaponType === WEAPON_EGRETS && chargeAsteroid) {
+              chargeAsteroid.visible = true;
+              chargeAsteroid.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.0, -0.7, -1.7);
+              offset.applyEuler(camera.rotation);
+              chargeAsteroid.position.add(offset);
+              chargeAsteroid.rotation.copy(camera.rotation);
+            } else if (weaponType === WEAPON_VIPER && chargeAsteroid) {
+              chargeAsteroid.visible = true;
+              chargeAsteroid.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
+              offset.applyEuler(camera.rotation);
+              chargeAsteroid.position.add(offset);
+              chargeAsteroid.rotation.copy(camera.rotation);
+            } else if (weaponType === WEAPON_GRASSHOPPER && grasshopperMesh) {
+              grasshopperMesh.visible = true;
+              grasshopperMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.0, -1.0, -1.2);
+              offset.applyEuler(camera.rotation);
+              grasshopperMesh.position.add(offset);
+              grasshopperMesh.rotation.copy(camera.rotation);
+            }
           }
 
           // アステロイド弾丸の移動
           for (const bullet of asteroidBullets) {
             if (!bullet.alive) continue;
-            bullet.mesh.position.add(bullet.velocity);
-            // 直線移動のみ（重力なし）
-            // 地面に落ちたら消す
+            if (bullet.viper) {
+              // バイパーは曲射
+              bullet.mesh.position.add(bullet.velocity);
+              bullet.viperStep = (bullet.viperStep || 0) + 1;
+              // 途中でカーブ
+              if (bullet.viperStep === 15) {
+                bullet.velocity.x += (Math.random() - 0.5) * 0.7;
+                bullet.velocity.y += (Math.random() - 0.5) * 0.2;
+              }
+            } else {
+              bullet.mesh.position.add(bullet.velocity);
+            }
             if (bullet.mesh.position.y < 0) {
               scene.remove(bullet.mesh);
               bullet.alive = false;
             }
           }
-          // 分裂アステロイドの移動
-          for (const s of splitAsteroids) {
-            if (!s.alive) continue;
-            s.mesh.position.add(s.velocity);
-            if (s.mesh.position.y < 0) {
-              scene.remove(s.mesh);
-              s.alive = false;
+
+          // 手元のアステロイド
+          if (viewMode === 'fps' && chargeAsteroid) {
+            chargeAsteroid.visible = true;
+            chargeAsteroid.position.copy(camera.position);
+            const offset = new THREE.Vector3(0.0, -1.2, -1.5);
+            offset.applyEuler(camera.rotation);
+            chargeAsteroid.position.add(offset);
+            chargeAsteroid.rotation.copy(camera.rotation);
+          }
+
+          // レーダー描画
+          if (radarVisible) {
+            radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
+            // レーダー円
+            radarCtx.save();
+            radarCtx.globalAlpha = 0.7;
+            radarCtx.beginPath();
+            radarCtx.arc(90, 90, 85, 0, Math.PI * 2);
+            radarCtx.fillStyle = "#222";
+            radarCtx.fill();
+            radarCtx.restore();
+            // プレイヤー中心
+            radarCtx.beginPath();
+            radarCtx.arc(90, 90, 6, 0, Math.PI * 2);
+            radarCtx.fillStyle = "#00bfff";
+            radarCtx.fill();
+            // 建物
+            for (let i = -2; i <= 2; i++) {
+              for (let j = -2; j <= 2; j++) {
+                if (i === 0 && j === 0) continue;
+                const bx = i * 14, bz = j * 14;
+                const dx = bx - playerPos.x;
+                const dz = bz - playerPos.z;
+                const dist = Math.sqrt(dx*dx + dz*dz);
+                if (dist > 60) continue;
+                const angle = Math.atan2(dx, dz) - yaw;
+                const r = dist * 2;
+                const rx = 90 + Math.sin(angle) * r;
+                const ry = 90 + Math.cos(angle) * r;
+                radarCtx.beginPath();
+                radarCtx.arc(rx, ry, 8, 0, Math.PI * 2);
+                radarCtx.fillStyle = "#ff4444";
+                radarCtx.fill();
+              }
+            }
+            // 弾（アステロイド等）
+            for (const bullet of asteroidBullets) {
+              if (!bullet.alive) continue;
+              const dx = bullet.mesh.position.x - playerPos.x;
+              const dz = bullet.mesh.position.z - playerPos.z;
+              const dist = Math.sqrt(dx*dx + dz*dz);
+              if (dist > 60) continue;
+              const angle = Math.atan2(dx, dz) - yaw;
+              const r = dist * 2;
+              const rx = 90 + Math.sin(angle) * r;
+              const ry = 90 + Math.cos(angle) * r;
+              radarCtx.beginPath();
+              radarCtx.arc(rx, ry, 4, 0, Math.PI * 2);
+              radarCtx.fillStyle = "#99ff66";
+              radarCtx.fill();
             }
           }
 
-          // 装填中のアステロイド or チャージ中の黄緑アステロイド
-          if (viewMode === 'fps') {
-            if (chargeAsteroid) {
-              chargeAsteroid.visible = true;
-              chargeAsteroid.position.copy(camera.position);
-              // 位置をもっと下の方に
-              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
-              offset.applyEuler(camera.rotation);
-              chargeAsteroid.position.add(offset);
-              chargeAsteroid.rotation.copy(camera.rotation);
-            }
-          }
           renderer.render(scene, camera);
-
-          // 衝突判定
-          for (const asteroid of asteroids) {
-            if (!asteroid.alive) continue;
-            checkAsteroidCollision(asteroid);
-          }
         }
         animate();
       }
