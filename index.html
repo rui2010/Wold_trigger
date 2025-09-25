@@ -63,9 +63,6 @@
         </label>
         <label>右手
           <select id="handType">
-            <option value="box">ボックス</option>
-            <option value="sphere">ボール</option>
-            <option value="blade">ブレード</option>
           </select>
         </label>
         <div id="charamake-preview"></div>
@@ -106,10 +103,10 @@
         );
         previewBody.position.y = 0;
         previewScene.add(previewBody);
-        // 右手
-        previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
-        previewHand.position.set(0.8, 2.2, 0.5);
-        previewScene.add(previewHand);
+        // 右手のプレビューを追加しない
+        // previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        // previewHand.position.set(0.8, 2.2, 0.5);
+        // previewScene.add(previewHand);
         previewRender();
       }
       function previewRender() {
@@ -124,10 +121,11 @@
         );
         previewBody.position.y = 0;
         previewScene.add(previewBody);
-        previewScene.remove(previewHand);
-        previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
-        previewHand.position.set(0.8, 2.2, 0.5);
-        previewScene.add(previewHand);
+        // 右手のプレビューを追加しない
+        // previewScene.remove(previewHand);
+        // previewHand = createHandMesh(charaParams.hand, charaParams.color, charaParams.material);
+        // previewHand.position.set(0.8, 2.2, 0.5);
+        // previewScene.add(previewHand);
         previewRender();
       }
       // キャラメイク用人型プレビュー
@@ -352,13 +350,17 @@
             scene.remove(loadedAsteroid);
             loadedAsteroid = null;
           }
-          if (isCharging) return;
-          // ここで灰色アステロイドは生成しない（建物の灰色アステロイドを消すため）
+          // ここで灰色アステロイドは生成しない
         }
 
-        // マウス1回目クリックで黄緑色アステロイドを手元に出す
+        // クリックしたら黄緑色のブロックを出現させるだけ
         window.addEventListener('mousedown', (e) => {
           if (viewMode === 'fps' && !isCharging && canShoot && !chargeAsteroid) {
+            // クリック前に灰色のブロックを消す
+            if (loadedAsteroid) {
+              scene.remove(loadedAsteroid);
+              loadedAsteroid = null;
+            }
             isCharging = true;
             chargeReady = false;
             chargeStartTime = performance.now();
@@ -605,50 +607,115 @@
         miniLight.position.set(5, 10, 5);
         miniScene.add(miniLight);
 
-        // 簡易コリジョン判定関数
-        function checkCollision(pos) {
-          // 地面
-          if (pos.y < playerHeight / 2) {
-            pos.y = playerHeight / 2;
-            playerVel.y = 0;
-            isOnGround = true;
-          } else {
-            isOnGround = false;
+        // キャラ本体（空閑遊真風モデル）
+        function createYumaKugaCharacter(material, params) {
+          const group = new THREE.Group();
+          // 胴体（細身、やや短め）
+          const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.0, 0.65), material);
+          body.position.y = 2.0;
+          group.add(body);
+          // 頭（やや大きめ、白髪）
+          const headMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 20), headMat);
+          head.position.y = 3.4;
+          group.add(head);
+          // 髪（空閑遊真の特徴的な白髪・前髪・サイド）
+          const hairMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
+          // 前髪
+          for (let i = 0; i < 3; i++) {
+            const bang = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), hairMat);
+            bang.position.set(-0.18 + i * 0.18, 4.0, 0.55);
+            bang.rotation.x = Math.PI / 1.7;
+            group.add(bang);
           }
-          // 建物
-          for (const b of buildings) {
-            const minX = b.x - 2, maxX = b.x + 2;
-            const minZ = b.z - 2, maxZ = b.z + 2;
-            const minY = 0, maxY = b.height;
-            const px = pos.x, py = pos.y - playerHeight / 2, pz = pos.z;
-            const pMinX = px - playerRadius, pMaxX = px + playerRadius;
-            const pMinZ = pz - playerRadius, pMaxZ = pz + playerRadius;
-            const pMinY = py, pMaxY = py + playerHeight;
-            if (
-              pMaxX > minX && pMinX < maxX &&
-              pMaxZ > minZ && pMinZ < maxZ &&
-              pMaxY > minY && pMinY < maxY
-            ) {
-              if (py < maxY && py > minY && playerVel.y < 0) {
-                pos.y = maxY + playerHeight / 2;
-                playerVel.y = 0;
-                isOnGround = true;
-              } else {
-                const dx1 = Math.abs(pMaxX - minX);
-                const dx2 = Math.abs(pMinX - maxX);
-                const dz1 = Math.abs(pMaxZ - minZ);
-                const dz2 = Math.abs(pMinZ - maxZ);
-                const minDist = Math.min(dx1, dx2, dz1, dz2);
-                if (minDist === dx1) pos.x = minX - playerRadius;
-                else if (minDist === dx2) pos.x = maxX + playerRadius;
-                else if (minDist === dz1) pos.z = minZ - playerRadius;
-                else if (minDist === dz2) pos.z = maxZ + playerRadius;
-              }
-            }
+          // サイド髪
+          for (let i = 0; i < 2; i++) {
+            const side = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 10), hairMat);
+            side.position.set(i === 0 ? -0.38 : 0.38, 3.8, 0.38);
+            side.rotation.x = Math.PI / 1.5;
+            group.add(side);
+          }
+          // 後頭部髪
+          for (let i = 0; i < 3; i++) {
+            const back = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 10), hairMat);
+            back.position.set(-0.18 + i * 0.18, 3.7, -0.45);
+            back.rotation.x = -Math.PI / 1.7;
+            group.add(back);
+          }
+          // 目（赤色）
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+          const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+          leftEye.position.set(-0.16, 3.55, 0.62);
+          group.add(leftEye);
+          const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+          rightEye.position.set(0.16, 3.55, 0.62);
+          group.add(rightEye);
+          // 口（小さめ）
+          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+          mouth.position.set(0, 3.38, 0.63);
+          group.add(mouth);
+          // 両腕（細め）
+          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), material);
+          rightArm.position.set(0.65, 2.3, 0);
+          rightArm.rotation.z = Math.PI / 10;
+          group.add(rightArm);
+          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), material);
+          leftArm.position.set(-0.65, 2.3, 0);
+          leftArm.rotation.z = -Math.PI / 10;
+          group.add(leftArm);
+          // 足（細め、短め）
+          let legLen = 1.2;
+          if (params.legType === "long") legLen = 1.7;
+          if (params.legType === "short") legLen = 0.8;
+          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, legLen, 12), material);
+          rightLeg.position.set(0.28, legLen / 2, 0);
+          group.add(rightLeg);
+          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, legLen, 12), material);
+          leftLeg.position.set(-0.28, legLen / 2, 0);
+          group.add(leftLeg);
+          return group;
+        }
+
+        const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
+        const playerMesh = createYumaKugaCharacter(playerMeshMaterial, charaParams);
+        playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
+        playerMesh.visible = false;
+        scene.add(playerMesh);
+
+        // --- アステロイド弾丸関連 ---
+        // アステロイドの初期位置
+        function resetAsteroidPosition(asteroid) {
+          asteroid.mesh.position.set(0, 10, -20 - Math.random() * 10);
+          asteroid.alive = true;
+        }
+
+        // アステロイドを定期的に生成
+        function spawnAsteroid() {
+          const geo = new THREE.BoxGeometry(1, 1, 1);
+          const mat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+          const asteroid = {
+            mesh: new THREE.Mesh(geo, mat),
+            alive: true,
+            // 追加: アステロイドのサイズ
+            size: 1 + Math.random() * 2
+          };
+          scene.add(asteroid.mesh);
+          asteroids.push(asteroid);
+          resetAsteroidPosition(asteroid);
+        }
+        setInterval(spawnAsteroid, 1500);
+
+        // アステロイドの衝突判定
+        function checkAsteroidCollision(asteroid) {
+          const dist = asteroid.mesh.position.distanceTo(playerPos);
+          if (dist < asteroid.size + playerRadius) {
+            // 衝突したらゲームオーバー
+            alert("ゲームオーバー");
+            document.location.reload();
           }
         }
 
-        // アニメーションループ
+        // --- ゲームループ ---
         function animate() {
           requestAnimationFrame(animate);
 
@@ -691,8 +758,8 @@
 
           // 移動処理（プレイヤー位置を動かす）
           let direction = new THREE.Vector3();
-          if (move.forward) direction.z -= 1;
-          if (move.backward) direction.z += 1;
+          if (move.forward) direction.z -= 1; // Wで前進
+          if (move.backward) direction.z += 1; // Sで後退
           if (move.left) direction.x -= 1;
           if (move.right) direction.x += 1;
           direction.normalize();
@@ -781,7 +848,8 @@
             if (chargeAsteroid) {
               chargeAsteroid.visible = true;
               chargeAsteroid.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.8, -0.3, -1.5);
+              // 位置をもっと下の方に
+              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
               offset.applyEuler(camera.rotation);
               chargeAsteroid.position.add(offset);
               chargeAsteroid.rotation.copy(camera.rotation);
@@ -789,7 +857,11 @@
           }
           renderer.render(scene, camera);
 
-          // ...existing code...
+          // 衝突判定
+          for (const asteroid of asteroids) {
+            if (!asteroid.alive) continue;
+            checkAsteroidCollision(asteroid);
+          }
         }
         animate();
       }
