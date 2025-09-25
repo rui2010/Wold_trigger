@@ -342,31 +342,31 @@
         }
 
         // --- キャラクター本体・右手 ---
-        // キャラ本体（人型：胴体・頭・両手・両足）
-        function createHumanMesh(material, params) {
+        // キャラ本体（ワールドトリガーのキャラ風：胴体・頭・髪・顔・腕・足）
+        function createWorldTriggerCharacter(material, params) {
           const group = new THREE.Group();
-          // 胴体
-          const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.7), material);
+          // 胴体（細身の長方形）
+          const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.4, 0.7), material);
           body.position.y = 2.1;
           group.add(body);
-          // 頭
-          const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), material);
-          head.position.y = 3.5;
+          // 頭（球体）
+          const head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 18), material);
+          head.position.y = 3.6;
           group.add(head);
-          // 髪
+          // 髪（シンプルな前髪＋サイド）
           const hairMat = new THREE.MeshPhongMaterial({ color: params.hairColor });
           if (params.hairType === "short") {
-            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.7), hairMat);
-            hair.position.y = 3.9;
+            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.7), hairMat);
+            hair.position.y = 4.0;
             group.add(hair);
           } else if (params.hairType === "long") {
-            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.1), hairMat);
-            hair.position.y = 3.7;
+            const hair = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.1), hairMat);
+            hair.position.y = 3.8;
             group.add(hair);
           } else if (params.hairType === "spiky") {
             for (let i = 0; i < 5; i++) {
               const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 8), hairMat);
-              spike.position.set(Math.sin(i * 1.25) * 0.4, 4.1, Math.cos(i * 1.25) * 0.4);
+              spike.position.set(Math.sin(i * 1.25) * 0.4, 4.2, Math.cos(i * 1.25) * 0.4);
               spike.rotation.x = Math.PI / 2.5;
               group.add(spike);
             }
@@ -374,77 +374,54 @@
           // 顔（目・口）
           if (params.faceType === "normal" || params.faceType === "smile" || params.faceType === "angry") {
             const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-            leftEye.position.set(-0.18, 3.55, 0.57);
+            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+            leftEye.position.set(-0.18, 3.68, 0.62);
             group.add(leftEye);
-            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-            rightEye.position.set(0.18, 3.55, 0.57);
+            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
+            rightEye.position.set(0.18, 3.68, 0.62);
             group.add(rightEye);
             // 口
             if (params.faceType === "smile") {
               const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 8, 16, Math.PI), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-              mouth.position.set(0, 3.33, 0.58);
+              mouth.position.set(0, 3.45, 0.65);
               mouth.rotation.x = Math.PI / 2;
               group.add(mouth);
             } else if (params.faceType === "angry") {
               const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-              mouth.position.set(0, 3.32, 0.58);
+              mouth.position.set(0, 3.44, 0.65);
               group.add(mouth);
             }
           }
-          // 両腕
-          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
-          rightArm.position.set(0.85, 2.5, 0);
+          // 両腕（細め）
+          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), material);
+          rightArm.position.set(0.75, 2.5, 0);
           rightArm.rotation.z = Math.PI / 10;
           group.add(rightArm);
-          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.3, 12), material);
-          leftArm.position.set(-0.85, 2.5, 0);
+          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), material);
+          leftArm.position.set(-0.75, 2.5, 0);
           leftArm.rotation.z = -Math.PI / 10;
           group.add(leftArm);
-          // 足
+          // 足（細め）
           let legLen = 1.5;
           if (params.legType === "long") legLen = 2.1;
           if (params.legType === "short") legLen = 1.0;
-          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, legLen, 12), material);
-          rightLeg.position.set(0.38, legLen / 2, 0);
+          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, legLen, 12), material);
+          rightLeg.position.set(0.32, legLen / 2, 0);
           group.add(rightLeg);
-          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, legLen, 12), material);
-          leftLeg.position.set(-0.38, legLen / 2, 0);
+          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, legLen, 12), material);
+          leftLeg.position.set(-0.32, legLen / 2, 0);
           group.add(leftLeg);
           return group;
         }
 
         const playerMeshMaterial = getMaterial(charaParams.material, charaParams.color);
-        const playerMesh = createHumanMesh(playerMeshMaterial, charaParams);
+        const playerMesh = createWorldTriggerCharacter(playerMeshMaterial, charaParams);
         playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
         playerMesh.visible = false;
         scene.add(playerMesh);
 
-        // 右手（人の手モデル）
-        function createRightHandMesh(material) {
-          const group = new THREE.Group();
-          // 手のひら
-          const palm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.7), material);
-          palm.position.set(0, 0, 0);
-          group.add(palm);
-          // 親指
-          const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.38, 8), material);
-          thumb.position.set(-0.23, 0.07, 0.18);
-          thumb.rotation.z = Math.PI / 2.5;
-          group.add(thumb);
-          // 4本指
-          for (let i = 0; i < 4; i++) {
-            const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.48, 8), material);
-            finger.position.set(-0.15 + i * 0.1, 0.13, 0.32);
-            finger.rotation.x = Math.PI / 2.1;
-            group.add(finger);
-          }
-          group.scale.set(1.1, 1.1, 1.1);
-          return group;
-        }
-        let rightHandMesh = createRightHandMesh(playerMeshMaterial);
-        rightHandMesh.visible = false;
-        scene.add(rightHandMesh);
+        // 右手（人の手モデル）は非表示にする
+        let rightHandMesh = null;
 
         // --- アステロイド弾丸 ---
         const asteroidBullets = [];
@@ -459,7 +436,12 @@
 
         // アステロイドを装填
         function loadAsteroid(color = 0xcccccc) {
-          if (loadedAsteroid || isCharging) return;
+          // 手元の灰色ブロックを消す
+          if (loadedAsteroid) {
+            scene.remove(loadedAsteroid);
+            loadedAsteroid = null;
+          }
+          if (isCharging) return;
           const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
           const mat = new THREE.MeshPhongMaterial({ color, emissive: 0x333366, emissiveIntensity: 0.5 });
           loadedAsteroid = new THREE.Mesh(geo, mat);
@@ -469,6 +451,11 @@
         // マウス長押しで黄緑色アステロイド
         window.addEventListener('mousedown', (e) => {
           if (viewMode === 'fps' && !isCharging && canShoot) {
+            // 手元の灰色ブロックを消す
+            if (loadedAsteroid) {
+              scene.remove(loadedAsteroid);
+              loadedAsteroid = null;
+            }
             isCharging = true;
             chargeStartTime = performance.now();
             // 黄緑色アステロイド
@@ -852,16 +839,12 @@
           if (viewMode === 'tps') {
             playerMesh.visible = true;
             playerMesh.position.set(playerPos.x, playerPos.y, playerPos.z);
-            rightHandMesh.visible = false;
+            // 右手は非表示
+            if (rightHandMesh) rightHandMesh.visible = false;
           } else {
             playerMesh.visible = false;
-            // 一人称視点のとき右手を表示
-            rightHandMesh.visible = true;
-            rightHandMesh.position.copy(camera.position);
-            const handOffset = new THREE.Vector3(0.6, -0.6, -1.1);
-            handOffset.applyEuler(camera.rotation);
-            rightHandMesh.position.add(handOffset);
-            rightHandMesh.rotation.copy(camera.rotation);
+            // 一人称視点のとき右手は表示しない
+            if (rightHandMesh) rightHandMesh.visible = false;
           }
 
           // アステロイド弾丸の移動
@@ -903,8 +886,6 @@
               chargeAsteroid.rotation.copy(camera.rotation);
             }
           }
-          // ...existing code...
-
           renderer.render(scene, camera);
 
           // ...existing code...
