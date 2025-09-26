@@ -49,6 +49,14 @@
       <button id="startBtn">ゲームスタート</button>
       <button id="triggerBtn">トリガー設定</button>
       <button id="charaBtn">キャラクター設定</button>
+      <!-- トリガーセットUI -->
+      <div id="trigger-sets" style="margin-top:2em;display:none;">
+        <div style="color:#fff;font-size:1.2em;margin-bottom:0.5em;">右手トリガー</div>
+        <div id="rightTriggers" style="display:flex;gap:0.5em;margin-bottom:1em;"></div>
+        <div style="color:#fff;font-size:1.2em;margin-bottom:0.5em;">左手トリガー</div>
+        <div id="leftTriggers" style="display:flex;gap:0.5em;"></div>
+        <button id="triggerSetOk" style="margin-top:1.5em;">OK</button>
+      </div>
     </div>
     <canvas id="gameCanvas" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;"></canvas>
     <!-- レーダー -->
@@ -90,10 +98,44 @@
         initGame();
       };
       document.getElementById('triggerBtn').onclick = () => {
-        alert("トリガー設定は未実装です");
+        menu.style.display = '';
+        triggerSetsDiv.style.display = '';
+        // セレクトボックス生成
+        rightTriggersDiv.innerHTML = '';
+        leftTriggersDiv.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+          const sel = document.createElement('select');
+          sel.style.fontSize = '1.1em';
+          for (const trg of TRIGGERS) {
+            const opt = document.createElement('option');
+            opt.value = trg.key;
+            opt.textContent = trg.name;
+            sel.appendChild(opt);
+          }
+          sel.value = rightTriggerSet[i];
+          sel.onchange = () => { rightTriggerSet[i] = sel.value; };
+          rightTriggersDiv.appendChild(sel);
+        }
+        for (let i = 0; i < 4; i++) {
+          const sel = document.createElement('select');
+          sel.style.fontSize = '1.1em';
+          for (const trg of TRIGGERS) {
+            const opt = document.createElement('option');
+            opt.value = trg.key;
+            opt.textContent = trg.name;
+            sel.appendChild(opt);
+          }
+          sel.value = leftTriggerSet[i];
+          sel.onchange = () => { leftTriggerSet[i] = sel.value; };
+          leftTriggersDiv.appendChild(sel);
+        }
       };
       document.getElementById('charaBtn').onclick = () => {
         alert("キャラクター設定は未実装です");
+      };
+      document.getElementById('triggerSetOk').onclick = () => {
+        triggerSetsDiv.style.display = 'none';
+        menu.style.display = '';
       };
 
       // レーダー関連
@@ -106,6 +148,88 @@
           radarCanvas.style.display = radarVisible ? '' : 'none';
         }
       });
+
+      // トリガー種別
+      const TRIGGERS = [
+        { key: "asteroid", name: "アステロイド" },
+        { key: "raygust", name: "レイガスト" },
+        { key: "scorpion", name: "スコーピオン" },
+        { key: "egret", name: "イーグレット" },
+        { key: "viper", name: "バイパー" },
+        { key: "grasshopper", name: "グラスホッパー" }
+      ];
+
+      // 右手・左手トリガーセット（初期値）
+      let rightTriggerSet = ["asteroid", "raygust", "scorpion", "egret"];
+      let leftTriggerSet = ["viper", "grasshopper", "asteroid", "scorpion"];
+      let rightTriggerIndex = 0;
+      let leftTriggerIndex = 0;
+
+      // トリガー設定UI
+      const triggerBtn = document.getElementById('triggerBtn');
+      const triggerSetsDiv = document.getElementById('trigger-sets');
+      const rightTriggersDiv = document.getElementById('rightTriggers');
+      const leftTriggersDiv = document.getElementById('leftTriggers');
+      const triggerSetOkBtn = document.getElementById('triggerSetOk');
+
+      triggerBtn.onclick = () => {
+        menu.style.display = '';
+        triggerSetsDiv.style.display = '';
+        // セレクトボックス生成
+        rightTriggersDiv.innerHTML = '';
+        leftTriggersDiv.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+          const sel = document.createElement('select');
+          sel.style.fontSize = '1.1em';
+          for (const trg of TRIGGERS) {
+            const opt = document.createElement('option');
+            opt.value = trg.key;
+            opt.textContent = trg.name;
+            sel.appendChild(opt);
+          }
+          sel.value = rightTriggerSet[i];
+          sel.onchange = () => { rightTriggerSet[i] = sel.value; };
+          rightTriggersDiv.appendChild(sel);
+        }
+        for (let i = 0; i < 4; i++) {
+          const sel = document.createElement('select');
+          sel.style.fontSize = '1.1em';
+          for (const trg of TRIGGERS) {
+            const opt = document.createElement('option');
+            opt.value = trg.key;
+            opt.textContent = trg.name;
+            sel.appendChild(opt);
+          }
+          sel.value = leftTriggerSet[i];
+          sel.onchange = () => { leftTriggerSet[i] = sel.value; };
+          leftTriggersDiv.appendChild(sel);
+        }
+      };
+      triggerSetOkBtn.onclick = () => {
+        triggerSetsDiv.style.display = 'none';
+        menu.style.display = '';
+      };
+
+      // トリガー選択キー
+      window.addEventListener('keydown', (e) => {
+        // 右手1-4: Q,W,E,R, 左手1-4: A,S,D,F
+        if (e.code === 'KeyQ') rightTriggerIndex = 0;
+        if (e.code === 'KeyW') rightTriggerIndex = 1;
+        if (e.code === 'KeyE') rightTriggerIndex = 2;
+        if (e.code === 'KeyR') rightTriggerIndex = 3;
+        if (e.code === 'KeyA') leftTriggerIndex = 0;
+        if (e.code === 'KeyS') leftTriggerIndex = 1;
+        if (e.code === 'KeyD') leftTriggerIndex = 2;
+        if (e.code === 'KeyF') leftTriggerIndex = 3;
+      });
+
+      // 現在の右手・左手トリガー
+      function getCurrentRightTrigger() {
+        return rightTriggerSet[rightTriggerIndex];
+      }
+      function getCurrentLeftTrigger() {
+        return leftTriggerSet[leftTriggerIndex];
+      }
 
       // --- 基本セットアップ ---
       function initGame() {
@@ -228,144 +352,251 @@
         }
 
         // --- 武器タイプ
-        const WEAPON_ASTEROID = "asteroid";
-        const WEAPON_RAYGUST = "raygust";
-        const WEAPON_SCORPION = "scorpion";
-        const WEAPON_EGRETS = "egret";
-        const WEAPON_VIPER = "viper";
-        const WEAPON_GRASSHOPPER = "grasshopper";
-        let weaponType = WEAPON_ASTEROID;
+        // 右手・左手で独立
+        let rightWeaponType = getCurrentRightTrigger();
+        let leftWeaponType = getCurrentLeftTrigger();
 
-        // 武器切り替え
-        window.addEventListener('keydown', (e) => {
-          if (e.code === 'Digit1') weaponType = WEAPON_ASTEROID;
-          if (e.code === 'Digit2') weaponType = WEAPON_RAYGUST;
-          if (e.code === 'Digit3') weaponType = WEAPON_SCORPION;
-          if (e.code === 'Digit4') weaponType = WEAPON_EGRETS;
-          if (e.code === 'Digit5') weaponType = WEAPON_VIPER;
-          if (e.code === 'Digit6') weaponType = WEAPON_GRASSHOPPER;
-        });
+        // 右手・左手の発射状態
+        let rightIsCharging = false, leftIsCharging = false;
+        let rightChargeObj = null, leftChargeObj = null;
+        let rightChargeReady = false, leftChargeReady = false;
+        let rightRaygustMesh = null, leftRaygustMesh = null;
+        let rightScorpionMesh = null, leftScorpionMesh = null;
+        let rightGrasshopperMesh = null, leftGrasshopperMesh = null;
 
-        // --- トリガー（武器）発射 ---
-        const asteroidBullets = [];
-        let canShoot = true;
-        let isCharging = false;
-        let chargeAsteroid = null;
-        let chargeReady = false;
-        let raygustMesh = null;
-        let scorpionMesh = null;
-        let grasshopperMesh = null;
-
-        window.addEventListener('mousedown', (e) => {
-          if (viewMode === 'fps' && !isCharging && canShoot && !chargeAsteroid) {
-            isCharging = true;
-            chargeReady = false;
-            if (weaponType === WEAPON_ASTEROID) {
-              // アステロイド
-              const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5 });
-              chargeAsteroid = new THREE.Mesh(geo, mat);
-              scene.add(chargeAsteroid);
-            } else if (weaponType === WEAPON_RAYGUST) {
-              // レイガスト（盾）
-              const geo = new THREE.BoxGeometry(0.5, 1.1, 0.15);
-              const mat = new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 });
-              raygustMesh = new THREE.Mesh(geo, mat);
-              scene.add(raygustMesh);
-            } else if (weaponType === WEAPON_SCORPION) {
-              // スコーピオン（刃）
-              const geo = new THREE.BoxGeometry(0.1, 0.7, 0.18);
-              const mat = new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 });
-              scorpionMesh = new THREE.Mesh(geo, mat);
-              scene.add(scorpionMesh);
-            } else if (weaponType === WEAPON_EGRETS) {
-              // イーグレット（狙撃銃）
-              const geo = new THREE.BoxGeometry(0.1, 0.1, 1.2);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-              chargeAsteroid = new THREE.Mesh(geo, mat);
-              scene.add(chargeAsteroid);
-            } else if (weaponType === WEAPON_VIPER) {
-              // バイパー（曲射弾：見た目はアステロイドと同じ）
-              const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
-              const mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x664400, emissiveIntensity: 0.5 });
-              chargeAsteroid = new THREE.Mesh(geo, mat);
-              scene.add(chargeAsteroid);
-            } else if (weaponType === WEAPON_GRASSHOPPER) {
-              // グラスホッパー（ジャンプパネル）
+        // 右クリック/左クリックで右手/左手発動
+        canvas.addEventListener('mousedown', (e) => {
+          // 0:左クリック→右手, 2:右クリック→左手
+          if (e.button === 0 && !rightIsCharging && !rightChargeObj) {
+            rightWeaponType = getCurrentRightTrigger();
+            rightIsCharging = true;
+            rightChargeReady = false;
+            // --- 武器モデルをワールドトリガー風に ---
+            if (rightWeaponType === "asteroid") {
+              // アステロイド：六角形の浮遊弾
+              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5, flatShading: true });
+              rightChargeObj = new THREE.Mesh(geo, mat);
+              scene.add(rightChargeObj);
+            } else if (rightWeaponType === "raygust") {
+              // レイガスト：盾＋グリップ
+              const group = new THREE.Group();
+              const shield = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.12), new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 }));
+              shield.position.x = 0.18;
+              group.add(shield);
+              const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 12), new THREE.MeshPhongMaterial({ color: 0x888899 }));
+              grip.rotation.z = Math.PI/2;
+              grip.position.x = -0.18;
+              group.add(grip);
+              rightRaygustMesh = group;
+              scene.add(rightRaygustMesh);
+            } else if (rightWeaponType === "scorpion") {
+              // スコーピオン：赤い三角刃
+              const group = new THREE.Group();
+              const blade = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.7, 3), new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 }));
+              blade.position.y = 0.35;
+              blade.rotation.x = Math.PI;
+              group.add(blade);
+              rightScorpionMesh = group;
+              scene.add(rightScorpionMesh);
+            } else if (rightWeaponType === "egret") {
+              // イーグレット：細長い銃身＋スコープ
+              const group = new THREE.Group();
+              const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+              barrel.rotation.x = Math.PI/2;
+              group.add(barrel);
+              const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 12), new THREE.MeshPhongMaterial({ color: 0x666666 }));
+              scope.position.z = 0.35;
+              scope.rotation.x = Math.PI/2;
+              group.add(scope);
+              rightChargeObj = group;
+              scene.add(rightChargeObj);
+            } else if (rightWeaponType === "viper") {
+              // バイパー：六角形の浮遊弾（色違い）
+              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x664400, emissiveIntensity: 0.5, flatShading: true });
+              rightChargeObj = new THREE.Mesh(geo, mat);
+              scene.add(rightChargeObj);
+            } else if (rightWeaponType === "grasshopper") {
+              // グラスホッパー：緑色のパネル
               const geo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
               const mat = new THREE.MeshPhongMaterial({ color: 0x33ff66, emissive: 0x006633, emissiveIntensity: 0.7 });
-              grasshopperMesh = new THREE.Mesh(geo, mat);
-              scene.add(grasshopperMesh);
+              rightGrasshopperMesh = new THREE.Mesh(geo, mat);
+              scene.add(rightGrasshopperMesh);
+            }
+          }
+          if (e.button === 2 && !leftIsCharging && !leftChargeObj) {
+            leftWeaponType = getCurrentLeftTrigger();
+            leftIsCharging = true;
+            leftChargeReady = false;
+            // --- 武器モデルをワールドトリガー風に ---
+            if (leftWeaponType === "asteroid") {
+              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5, flatShading: true });
+              leftChargeObj = new THREE.Mesh(geo, mat);
+              scene.add(leftChargeObj);
+            } else if (leftWeaponType === "raygust") {
+              const group = new THREE.Group();
+              const shield = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.12), new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 }));
+              shield.position.x = -0.18;
+              group.add(shield);
+              const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 12), new THREE.MeshPhongMaterial({ color: 0x888899 }));
+              grip.rotation.z = Math.PI/2;
+              grip.position.x = 0.18;
+              group.add(grip);
+              leftRaygustMesh = group;
+              scene.add(leftRaygustMesh);
+            } else if (leftWeaponType === "scorpion") {
+              const group = new THREE.Group();
+              const blade = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.7, 3), new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 }));
+              blade.position.y = 0.35;
+              blade.rotation.x = Math.PI;
+              group.add(blade);
+              leftScorpionMesh = group;
+              scene.add(leftScorpionMesh);
+            } else if (leftWeaponType === "egret") {
+              const group = new THREE.Group();
+              const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+              barrel.rotation.x = Math.PI/2;
+              group.add(barrel);
+              const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 12), new THREE.MeshPhongMaterial({ color: 0x666666 }));
+              scope.position.z = 0.35;
+              scope.rotation.x = Math.PI/2;
+              group.add(scope);
+              leftChargeObj = group;
+              scene.add(leftChargeObj);
+            } else if (leftWeaponType === "viper") {
+              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x664400, emissiveIntensity: 0.5, flatShading: true });
+              leftChargeObj = new THREE.Mesh(geo, mat);
+              scene.add(leftChargeObj);
+            } else if (leftWeaponType === "grasshopper") {
+              const geo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+              const mat = new THREE.MeshPhongMaterial({ color: 0x33ff66, emissive: 0x006633, emissiveIntensity: 0.7 });
+              leftGrasshopperMesh = new THREE.Mesh(geo, mat);
+              scene.add(leftGrasshopperMesh);
             }
           }
         });
-        window.addEventListener('mouseup', (e) => {
-          if (!isCharging) return;
-          if (weaponType === WEAPON_ASTEROID && chargeAsteroid) {
-            if (!chargeReady) { chargeReady = true; return; }
-            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-            asteroidBullets.push({
-              mesh: chargeAsteroid,
-              velocity: dir.multiplyScalar(0.7),
-              alive: true
-            });
-            chargeAsteroid = null;
-            isCharging = false;
-            chargeReady = false;
-            canShoot = false;
-            setTimeout(() => { canShoot = true; }, 400);
-          } else if (weaponType === WEAPON_RAYGUST && raygustMesh) {
-            // レイガストは盾を前に出すだけ
-            isCharging = false;
-            setTimeout(() => {
-              if (raygustMesh) {
-                scene.remove(raygustMesh);
-                raygustMesh = null;
-              }
-            }, 500);
-          } else if (weaponType === WEAPON_SCORPION && scorpionMesh) {
-            // スコーピオンは刃を一瞬出す
-            isCharging = false;
-            setTimeout(() => {
-              if (scorpionMesh) {
-                scene.remove(scorpionMesh);
-                scorpionMesh = null;
-              }
-            }, 350);
-          } else if (weaponType === WEAPON_EGRETS && chargeAsteroid) {
-            // イーグレットは直線弾
-            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-            asteroidBullets.push({
-              mesh: chargeAsteroid,
-              velocity: dir.multiplyScalar(2.0),
-              alive: true
-            });
-            chargeAsteroid = null;
-            isCharging = false;
-            canShoot = false;
-            setTimeout(() => { canShoot = true; }, 600);
-          } else if (weaponType === WEAPON_VIPER && chargeAsteroid) {
-            // バイパーは曲射
-            const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-            asteroidBullets.push({
-              mesh: chargeAsteroid,
-              velocity: dir.multiplyScalar(0.7),
-              alive: true,
-              viper: true,
-              viperStep: 0
-            });
-            chargeAsteroid = null;
-            isCharging = false;
-            canShoot = false;
-            setTimeout(() => { canShoot = true; }, 400);
-          } else if (weaponType === WEAPON_GRASSHOPPER && grasshopperMesh) {
-            // グラスホッパーはジャンプ
-            isCharging = false;
-            scene.remove(grasshopperMesh);
-            grasshopperMesh = null;
-            playerVel.y = 0.38;
+
+        // 右手（左クリック）/左手（右クリック）発動
+        canvas.addEventListener('mouseup', (e) => {
+          if (e.button === 0 && rightIsCharging) {
+            if (!rightChargeReady) { rightChargeReady = true; return; }
+            // 右手発動
+            if (rightWeaponType === "asteroid" && rightChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: rightChargeObj,
+                velocity: dir.multiplyScalar(0.7),
+                alive: true
+              });
+              rightChargeObj = null;
+              rightIsCharging = false;
+              rightChargeReady = false;
+            } else if (rightWeaponType === "raygust" && rightRaygustMesh) {
+              rightIsCharging = false;
+              setTimeout(() => {
+                if (rightRaygustMesh) {
+                  scene.remove(rightRaygustMesh);
+                  rightRaygustMesh = null;
+                }
+              }, 500);
+            } else if (rightWeaponType === "scorpion" && rightScorpionMesh) {
+              rightIsCharging = false;
+              setTimeout(() => {
+                if (rightScorpionMesh) {
+                  scene.remove(rightScorpionMesh);
+                  rightScorpionMesh = null;
+                }
+              }, 350);
+            } else if (rightWeaponType === "egret" && rightChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: rightChargeObj,
+                velocity: dir.multiplyScalar(2.0),
+                alive: true
+              });
+              rightChargeObj = null;
+              rightIsCharging = false;
+            } else if (rightWeaponType === "viper" && rightChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: rightChargeObj,
+                velocity: dir.multiplyScalar(0.7),
+                alive: true,
+                viper: true,
+                viperStep: 0
+              });
+              rightChargeObj = null;
+              rightIsCharging = false;
+            } else if (rightWeaponType === "grasshopper" && rightGrasshopperMesh) {
+              rightIsCharging = false;
+              scene.remove(rightGrasshopperMesh);
+              rightGrasshopperMesh = null;
+              playerVel.y = 0.38;
+            }
+          }
+          if (e.button === 2 && leftIsCharging) {
+            if (!leftChargeReady) { leftChargeReady = true; return; }
+            // 左手発動
+            if (leftWeaponType === "asteroid" && leftChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: leftChargeObj,
+                velocity: dir.multiplyScalar(0.7),
+                alive: true
+              });
+              leftChargeObj = null;
+              leftIsCharging = false;
+              leftChargeReady = false;
+            } else if (leftWeaponType === "raygust" && leftRaygustMesh) {
+              leftIsCharging = false;
+              setTimeout(() => {
+                if (leftRaygustMesh) {
+                  scene.remove(leftRaygustMesh);
+                  leftRaygustMesh = null;
+                }
+              }, 500);
+            } else if (leftWeaponType === "scorpion" && leftScorpionMesh) {
+              leftIsCharging = false;
+              setTimeout(() => {
+                if (leftScorpionMesh) {
+                  scene.remove(leftScorpionMesh);
+                  leftScorpionMesh = null;
+                }
+              }, 350);
+            } else if (leftWeaponType === "egret" && leftChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: leftChargeObj,
+                velocity: dir.multiplyScalar(2.0),
+                alive: true
+              });
+              leftChargeObj = null;
+              leftIsCharging = false;
+            } else if (leftWeaponType === "viper" && leftChargeObj) {
+              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
+              asteroidBullets.push({
+                mesh: leftChargeObj,
+                velocity: dir.multiplyScalar(0.7),
+                alive: true,
+                viper: true,
+                viperStep: 0
+              });
+              leftChargeObj = null;
+              leftIsCharging = false;
+            } else if (leftWeaponType === "grasshopper" && leftGrasshopperMesh) {
+              leftIsCharging = false;
+              scene.remove(leftGrasshopperMesh);
+              leftGrasshopperMesh = null;
+              playerVel.y = 0.38;
+            }
           }
         });
+
+        // 右クリックのコンテキストメニュー抑制
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
 
         // --- 入力 ---
         const move = { forward: false, backward: false, left: false, right: false };
@@ -425,8 +656,8 @@
 
           // 移動
           let direction = new THREE.Vector3();
-          if (move.forward) direction.z -= 1;
-          if (move.backward) direction.z += 1;
+          if (move.forward) direction.z -= 1; // Wで前進
+          if (move.backward) direction.z += 1; // Sで後退
           if (move.left) direction.x -= 1;
           if (move.right) direction.x += 1;
           direction.normalize();
@@ -460,48 +691,93 @@
 
           // 武器の手元表示
           if (viewMode === 'fps') {
-            if (weaponType === WEAPON_ASTEROID && chargeAsteroid) {
-              chargeAsteroid.visible = true;
-              chargeAsteroid.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
+            // 右手（左クリック）
+            if (rightWeaponType === "asteroid" && rightChargeObj) {
+              rightChargeObj.visible = true;
+              rightChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.6, -1.2, -1.5);
               offset.applyEuler(camera.rotation);
-              chargeAsteroid.position.add(offset);
-              chargeAsteroid.rotation.copy(camera.rotation);
-            } else if (weaponType === WEAPON_RAYGUST && raygustMesh) {
-              raygustMesh.visible = true;
-              raygustMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.5, -0.2, -1.0);
+              rightChargeObj.position.add(offset);
+              rightChargeObj.rotation.copy(camera.rotation);
+            } else if (rightWeaponType === "raygust" && rightRaygustMesh) {
+              rightRaygustMesh.visible = true;
+              rightRaygustMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.8, -0.2, -1.0);
               offset.applyEuler(camera.rotation);
-              raygustMesh.position.add(offset);
-              raygustMesh.rotation.copy(camera.rotation);
-            } else if (weaponType === WEAPON_SCORPION && scorpionMesh) {
-              scorpionMesh.visible = true;
-              scorpionMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.4, -0.3, -1.0);
+              rightRaygustMesh.position.add(offset);
+              rightRaygustMesh.rotation.copy(camera.rotation);
+            } else if (rightWeaponType === "scorpion" && rightScorpionMesh) {
+              rightScorpionMesh.visible = true;
+              rightScorpionMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.7, -0.3, -1.0);
               offset.applyEuler(camera.rotation);
-              scorpionMesh.position.add(offset);
-              scorpionMesh.rotation.copy(camera.rotation);
-            } else if (weaponType === WEAPON_EGRETS && chargeAsteroid) {
-              chargeAsteroid.visible = true;
-              chargeAsteroid.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.0, -0.7, -1.7);
+              rightScorpionMesh.position.add(offset);
+              rightScorpionMesh.rotation.copy(camera.rotation);
+            } else if (rightWeaponType === "egret" && rightChargeObj) {
+              rightChargeObj.visible = true;
+              rightChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.6, -0.7, -1.7);
               offset.applyEuler(camera.rotation);
-              chargeAsteroid.position.add(offset);
-              chargeAsteroid.rotation.copy(camera.rotation);
-            } else if (weaponType === WEAPON_VIPER && chargeAsteroid) {
-              chargeAsteroid.visible = true;
-              chargeAsteroid.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.0, -1.2, -1.5);
+              rightChargeObj.position.add(offset);
+              rightChargeObj.rotation.copy(camera.rotation);
+            } else if (rightWeaponType === "viper" && rightChargeObj) {
+              rightChargeObj.visible = true;
+              rightChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.6, -1.2, -1.5);
               offset.applyEuler(camera.rotation);
-              chargeAsteroid.position.add(offset);
-              chargeAsteroid.rotation.copy(camera.rotation);
-            } else if (weaponType === WEAPON_GRASSHOPPER && grasshopperMesh) {
-              grasshopperMesh.visible = true;
-              grasshopperMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.0, -1.0, -1.2);
+              rightChargeObj.position.add(offset);
+              rightChargeObj.rotation.copy(camera.rotation);
+            } else if (rightWeaponType === "grasshopper" && rightGrasshopperMesh) {
+              rightGrasshopperMesh.visible = true;
+              rightGrasshopperMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(0.6, -1.0, -1.2);
               offset.applyEuler(camera.rotation);
-              grasshopperMesh.position.add(offset);
-              grasshopperMesh.rotation.copy(camera.rotation);
+              rightGrasshopperMesh.position.add(offset);
+              rightGrasshopperMesh.rotation.copy(camera.rotation);
+            }
+            // 左手（右クリック）
+            if (leftWeaponType === "asteroid" && leftChargeObj) {
+              leftChargeObj.visible = true;
+              leftChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.6, -1.2, -1.5);
+              offset.applyEuler(camera.rotation);
+              leftChargeObj.position.add(offset);
+              leftChargeObj.rotation.copy(camera.rotation);
+            } else if (leftWeaponType === "raygust" && leftRaygustMesh) {
+              leftRaygustMesh.visible = true;
+              leftRaygustMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.8, -0.2, -1.0);
+              offset.applyEuler(camera.rotation);
+              leftRaygustMesh.position.add(offset);
+              leftRaygustMesh.rotation.copy(camera.rotation);
+            } else if (leftWeaponType === "scorpion" && leftScorpionMesh) {
+              leftScorpionMesh.visible = true;
+              leftScorpionMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.7, -0.3, -1.0);
+              offset.applyEuler(camera.rotation);
+              leftScorpionMesh.position.add(offset);
+              leftScorpionMesh.rotation.copy(camera.rotation);
+            } else if (leftWeaponType === "egret" && leftChargeObj) {
+              leftChargeObj.visible = true;
+              leftChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.6, -0.7, -1.7);
+              offset.applyEuler(camera.rotation);
+              leftChargeObj.position.add(offset);
+              leftChargeObj.rotation.copy(camera.rotation);
+            } else if (leftWeaponType === "viper" && leftChargeObj) {
+              leftChargeObj.visible = true;
+              leftChargeObj.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.6, -1.2, -1.5);
+              offset.applyEuler(camera.rotation);
+              leftChargeObj.position.add(offset);
+              leftChargeObj.rotation.copy(camera.rotation);
+            } else if (leftWeaponType === "grasshopper" && leftGrasshopperMesh) {
+              leftGrasshopperMesh.visible = true;
+              leftGrasshopperMesh.position.copy(camera.position);
+              const offset = new THREE.Vector3(-0.6, -1.0, -1.2);
+              offset.applyEuler(camera.rotation);
+              leftGrasshopperMesh.position.add(offset);
+              leftGrasshopperMesh.rotation.copy(camera.rotation);
             }
           }
 
