@@ -237,11 +237,14 @@
         // const canvas = document.getElementById('gameCanvas'); ← ここは不要
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setClearColor(0x222222);
-        // ★ ウィンドウサイズに合わせてcanvasサイズも変更
+
+        // ★ ウィンドウサイズに合わせてcanvasサイズも変更し、canvas自体のwidth/heightも設定
         function resizeRenderer() {
           const w = window.innerWidth;
           const h = window.innerHeight;
           renderer.setSize(w, h, false);
+          canvas.width = w;
+          canvas.height = h;
         }
         resizeRenderer();
         window.addEventListener('resize', resizeRenderer);
@@ -337,19 +340,58 @@
         let yaw = 0, pitch = -0.18;
         let viewMode = 'fps';
 
-        // --- 建物 ---
-        for (let i = -2; i <= 2; i++) {
-          for (let j = -2; j <= 2; j++) {
-            if (i === 0 && j === 0) continue;
-            const h = 10;
+        // --- 市街地Aマップ配置 ---
+        // 建物配置データ（市街地A風：碁盤目＋道路＋空き地）
+        // 7x7グリッド、中央に広場、道路は2マス幅
+        const mapSize = 7;
+        const blockSize = 8;
+        const roadWidth = 2;
+        const buildingHeight = [8, 10, 12, 14];
+        for (let gx = 0; gx < mapSize; gx++) {
+          for (let gz = 0; gz < mapSize; gz++) {
+            // 中央広場
+            if (gx >= 2 && gx <= 4 && gz >= 2 && gz <= 4) continue;
+            // 道路
+            if (gx === 3 || gz === 3 || gx === 2 || gx === 4 || gz === 2 || gz === 4) continue;
+            // ランダムに空き地も作る
+            if (Math.random() < 0.13) continue;
+            // 建物
+            const h = buildingHeight[Math.floor(Math.random() * buildingHeight.length)];
             const building = new THREE.Mesh(
-              new THREE.BoxGeometry(4, h, 4),
-              new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0x660000, emissiveIntensity: 0.35 })
+              new THREE.BoxGeometry(blockSize, h, blockSize),
+              new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x444444, emissiveIntensity: 0.25 })
             );
-            building.position.set(i * 14, h / 2, j * 14);
+            building.position.set((gx - 3) * (blockSize + 2), h / 2, (gz - 3) * (blockSize + 2));
             scene.add(building);
           }
         }
+        // 地面の道路模様
+        const roadMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        // 縦道路
+        for (let gx = 2; gx <= 4; gx++) {
+          const road = new THREE.Mesh(
+            new THREE.BoxGeometry(roadWidth, 0.11, mapSize * (blockSize + 2)),
+            roadMat
+          );
+          road.position.set((gx - 3) * (blockSize + 2), 0.06, 0);
+          scene.add(road);
+        }
+        // 横道路
+        for (let gz = 2; gz <= 4; gz++) {
+          const road = new THREE.Mesh(
+            new THREE.BoxGeometry(mapSize * (blockSize + 2), 0.11, roadWidth),
+            roadMat
+          );
+          road.position.set(0, 0.06, (gz - 3) * (blockSize + 2));
+          scene.add(road);
+        }
+        // 中央広場
+        const plaza = new THREE.Mesh(
+          new THREE.BoxGeometry((roadWidth + 1) * (blockSize + 2), 0.12, (roadWidth + 1) * (blockSize + 2)),
+          new THREE.MeshPhongMaterial({ color: 0xddddcc })
+        );
+        plaza.position.set(0, 0.07, 0);
+        scene.add(plaza);
 
         // --- 武器タイプ
         // 右手・左手で独立
