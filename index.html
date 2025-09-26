@@ -50,7 +50,7 @@
       <button id="triggerBtn">トリガー設定</button>
       <button id="charaBtn">キャラクター設定</button>
     </div>
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;"></canvas>
     <!-- レーダー -->
     <canvas id="radar" width="180" height="180" style="position:absolute;right:20px;bottom:20px;z-index:50;display:none;background:rgba(0,0,0,0.7);border-radius:50%;"></canvas>
     <script>
@@ -96,13 +96,31 @@
         alert("キャラクター設定は未実装です");
       };
 
+      // レーダー関連
+      let radarVisible = false;
+      const radarCanvas = document.getElementById('radar');
+      const radarCtx = radarCanvas.getContext('2d');
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyM') {
+          radarVisible = !radarVisible;
+          radarCanvas.style.display = radarVisible ? '' : 'none';
+        }
+      });
+
       // --- 基本セットアップ ---
       function initGame() {
         // --- THREE.jsセットアップ ---
         // const canvas = document.getElementById('gameCanvas'); ← ここは不要
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setClearColor(0x222222);
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        // ★ ウィンドウサイズに合わせてcanvasサイズも変更
+        function resizeRenderer() {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          renderer.setSize(w, h, false);
+        }
+        resizeRenderer();
+        window.addEventListener('resize', resizeRenderer);
 
         const scene = new THREE.Scene();
 
