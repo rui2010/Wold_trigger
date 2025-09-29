@@ -71,19 +71,55 @@
     // --- 市街地Aマップ ---
     // 7x7グリッド、中央広場、道路、建物
     const mapSize = 7, blockSize = 8, roadWidth = 2;
-    const buildingHeight = [8, 10, 12, 14];
+    // 建物の高さ・色・屋根形状をアニメ風に
+    const buildingTypes = [
+      // 白壁＋青屋根
+      { color: 0xf8f8f8, roof: 0x3366cc, height: 8, roofHeight: 2.2 },
+      // ベージュ壁＋赤屋根
+      { color: 0xf6e3b4, roof: 0xcc3333, height: 10, roofHeight: 2.5 },
+      // 灰色壁＋緑屋根
+      { color: 0xd0d0d0, roof: 0x339966, height: 12, roofHeight: 2.8 },
+      // 薄茶壁＋茶屋根
+      { color: 0xeed9c4, roof: 0x996633, height: 9, roofHeight: 2.0 }
+    ];
     for (let gx = 0; gx < mapSize; gx++) {
       for (let gz = 0; gz < mapSize; gz++) {
         if (gx >= 2 && gx <= 4 && gz >= 2 && gz <= 4) continue;
         if (gx === 3 || gz === 3 || gx === 2 || gx === 4 || gz === 2 || gz === 4) continue;
         if (Math.random() < 0.13) continue;
-        const h = buildingHeight[Math.floor(Math.random() * buildingHeight.length)];
-        const building = new THREE.Mesh(
-          new THREE.BoxGeometry(blockSize, h, blockSize),
-          new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x444444, emissiveIntensity: 0.25 })
+        // アニメ風の家タイプをランダム選択
+        const t = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+        // 本体（壁）
+        const house = new THREE.Mesh(
+          new THREE.BoxGeometry(blockSize, t.height, blockSize),
+          new THREE.MeshPhongMaterial({ color: t.color, emissive: 0x222222, emissiveIntensity: 0.18 })
         );
-        building.position.set((gx - 3) * (blockSize + 2), h / 2, (gz - 3) * (blockSize + 2));
-        scene.add(building);
+        house.position.set((gx - 3) * (blockSize + 2), t.height / 2, (gz - 3) * (blockSize + 2));
+        scene.add(house);
+        // 屋根（アニメ風の三角屋根）
+        const roof = new THREE.Mesh(
+          new THREE.ConeGeometry(blockSize * 0.95, t.roofHeight, 4),
+          new THREE.MeshPhongMaterial({ color: t.roof, shininess: 60 })
+        );
+        roof.position.set(house.position.x, t.height + t.roofHeight / 2, house.position.z);
+        roof.rotation.y = Math.PI / 4;
+        scene.add(roof);
+        // 窓（白い四角を壁に貼る）
+        for (let wx = -1; wx <= 1; wx += 2) {
+          const window = new THREE.Mesh(
+            new THREE.BoxGeometry(1.2, 1.2, 0.18),
+            new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xeeeeee, emissiveIntensity: 0.5 })
+          );
+          window.position.set(house.position.x + wx * 2.2, house.position.y + 1.2, house.position.z + blockSize / 2 + 0.1);
+          scene.add(window);
+        }
+        // ドア（茶色い四角）
+        const door = new THREE.Mesh(
+          new THREE.BoxGeometry(1.1, 2.0, 0.18),
+          new THREE.MeshPhongMaterial({ color: 0x996633 })
+        );
+        door.position.set(house.position.x, house.position.y - t.height / 2 + 1.0, house.position.z + blockSize / 2 + 0.11);
+        scene.add(door);
       }
     }
     // 地面
@@ -368,11 +404,17 @@
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
       if (e.code === 'KeyQ') {
+        // 左トリガー切り替え時に表示中のトリガーを消す
+        if (leftBulletObj) { scene.remove(leftBulletObj); leftBulletObj = null; leftBulletReady = false; }
+        if (leftTriggerObj) { scene.remove(leftTriggerObj); leftTriggerObj = null; }
         leftTriggerIndex = (leftTriggerIndex + 1) % leftTriggerSet.length;
         leftTriggerType = leftTriggerSet[leftTriggerIndex];
         updateTriggerUI();
       }
       if (e.code === 'KeyE') {
+        // 右トリガー切り替え時に表示中のトリガーを消す
+        if (rightBulletObj) { scene.remove(rightBulletObj); rightBulletObj = null; rightBulletReady = false; }
+        if (rightTriggerObj) { scene.remove(rightTriggerObj); rightTriggerObj = null; }
         rightTriggerIndex = (rightTriggerIndex + 1) % rightTriggerSet.length;
         rightTriggerType = rightTriggerSet[rightTriggerIndex];
         updateTriggerUI();
@@ -582,8 +624,9 @@
 
       // 移動
       let direction = new THREE.Vector3();
-      if (move.forward) direction.z -= 1; // Wで前進
-      if (move.backward) direction.z += 1; // Sで後退
+      // Wで前進, Sで後退（修正）
+      if (move.forward) direction.z += 1; // Wで前進
+      if (move.backward) direction.z -= 1; // Sで後退
       if (move.left) direction.x -= 1;    // Aで左
       if (move.right) direction.x += 1;   // Dで右
       direction.normalize();
@@ -734,307 +777,4 @@
     animate();
   </script>
 </body>
-</html>
-              })
-            );
-            explosion.position.copy(bullet.mesh.position);
-            scene.add(explosion);
-            explosions.push({ mesh: explosion, time: 0 });
-            scene.remove(bullet.mesh);
-            bullet.alive = false;
-            continue;
-          }
-        }
-        // 地面より下 or 遠くに行ったら消す
-        if (bullet.mesh.position.y < 0.5 ||
-            bullet.mesh.position.distanceTo(playerPos) > 120) {
-          scene.remove(bullet.mesh);
-          bullet.alive = false;
-        }
-      }
-
-      // メテオラ爆発エフェクトの消去（0.5秒で消える）
-      for (let i = explosions.length - 1; i >= 0; i--) {
-        explosions[i].time += 1 / 60;
-        if (explosions[i].time > 0.5) {
-          scene.remove(explosions[i].mesh);
-          explosions.splice(i, 1);
-        }
-      }
-
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
-</body>
-</html>
-          if (viewMode === 'fps') {
-            camera.position.set(playerPos.x, playerPos.y + 6, playerPos.z + 24);
-            camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
-            camera.rotation.order = "YXZ";
-            camera.rotation.y = yaw;
-            camera.rotation.x = pitch;
-            camera.rotation.z = 0;
-          } else {
-            // TPS未実装
-          }
-
-          // 移動
-          let direction = new THREE.Vector3();
-          if (move.forward) direction.z -= 1; // Wで前進
-          if (move.backward) direction.z += 1; // Sで後退
-          if (move.left) direction.x -= 1;
-          if (move.right) direction.x += 1;
-          direction.normalize();
-          let moveVector = new THREE.Vector3();
-          if (direction.length() > 0) {
-            // カメラの向きに合わせて移動
-            const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
-            const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
-            moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
-          }
-          // ジャンプ
-          if (wantJump && isOnGround) {
-            playerVel.y = jumpVel;
-            isOnGround = false;
-          }
-          wantJump = false;
-          // 重力
-          playerVel.y += gravity * 0.5;
-          // 移動速度
-          playerVel.x = moveVector.x * speed;
-          playerVel.z = moveVector.z * speed;
-          // 位置更新
-          playerPos.add(playerVel);
-          // 地面
-          if (playerPos.y < 1.0) {
-            playerPos.y = 1.0;
-            playerVel.y = 0;
-            isOnGround = true;
-          } else {
-            isOnGround = false;
-          }
-
-          // 武器の手元表示
-          if (viewMode === 'fps') {
-            // 右手（左クリック）
-            if (rightWeaponType === "asteroid" && rightChargeObj) {
-              rightChargeObj.visible = true;
-              rightChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.6, -1.2, -1.5);
-              offset.applyEuler(camera.rotation);
-              rightChargeObj.position.add(offset);
-              rightChargeObj.rotation.copy(camera.rotation);
-            } else if (rightWeaponType === "raygust" && rightRaygustMesh) {
-              rightRaygustMesh.visible = true;
-              rightRaygustMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.8, -0.2, -1.0);
-              offset.applyEuler(camera.rotation);
-              rightRaygustMesh.position.add(offset);
-              rightRaygustMesh.rotation.copy(camera.rotation);
-            } else if (rightWeaponType === "scorpion" && rightScorpionMesh) {
-              rightScorpionMesh.visible = true;
-              rightScorpionMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.7, -0.3, -1.0);
-              offset.applyEuler(camera.rotation);
-              rightScorpionMesh.position.add(offset);
-              rightScorpionMesh.rotation.copy(camera.rotation);
-            } else if (rightWeaponType === "egret" && rightChargeObj) {
-              rightChargeObj.visible = true;
-              rightChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.6, -0.7, -1.7);
-              offset.applyEuler(camera.rotation);
-              rightChargeObj.position.add(offset);
-              rightChargeObj.rotation.copy(camera.rotation);
-            } else if (rightWeaponType === "viper" && rightChargeObj) {
-              rightChargeObj.visible = true;
-              rightChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.6, -1.2, -1.5);
-              offset.applyEuler(camera.rotation);
-              rightChargeObj.position.add(offset);
-              rightChargeObj.rotation.copy(camera.rotation);
-            } else if (rightWeaponType === "grasshopper" && rightGrasshopperMesh) {
-              rightGrasshopperMesh.visible = true;
-              rightGrasshopperMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(0.6, -1.0, -1.2);
-              offset.applyEuler(camera.rotation);
-              rightGrasshopperMesh.position.add(offset);
-              rightGrasshopperMesh.rotation.copy(camera.rotation);
-            }
-            // 左手（右クリック）
-            if (leftWeaponType === "asteroid" && leftChargeObj) {
-              leftChargeObj.visible = true;
-              leftChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.6, -1.2, -1.5);
-              offset.applyEuler(camera.rotation);
-              leftChargeObj.position.add(offset);
-              leftChargeObj.rotation.copy(camera.rotation);
-            } else if (leftWeaponType === "raygust" && leftRaygustMesh) {
-              leftRaygustMesh.visible = true;
-              leftRaygustMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.8, -0.2, -1.0);
-              offset.applyEuler(camera.rotation);
-              leftRaygustMesh.position.add(offset);
-              leftRaygustMesh.rotation.copy(camera.rotation);
-            } else if (leftWeaponType === "scorpion" && leftScorpionMesh) {
-              leftScorpionMesh.visible = true;
-              leftScorpionMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.7, -0.3, -1.0);
-              offset.applyEuler(camera.rotation);
-              leftScorpionMesh.position.add(offset);
-              leftScorpionMesh.rotation.copy(camera.rotation);
-            } else if (leftWeaponType === "egret" && leftChargeObj) {
-              leftChargeObj.visible = true;
-              leftChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.6, -0.7, -1.7);
-              offset.applyEuler(camera.rotation);
-              leftChargeObj.position.add(offset);
-              leftChargeObj.rotation.copy(camera.rotation);
-            } else if (leftWeaponType === "viper" && leftChargeObj) {
-              leftChargeObj.visible = true;
-              leftChargeObj.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.6, -1.2, -1.5);
-              offset.applyEuler(camera.rotation);
-              leftChargeObj.position.add(offset);
-              leftChargeObj.rotation.copy(camera.rotation);
-            } else if (leftWeaponType === "grasshopper" && leftGrasshopperMesh) {
-              leftGrasshopperMesh.visible = true;
-              leftGrasshopperMesh.position.copy(camera.position);
-              const offset = new THREE.Vector3(-0.6, -1.0, -1.2);
-              offset.applyEuler(camera.rotation);
-              leftGrasshopperMesh.position.add(offset);
-              leftGrasshopperMesh.rotation.copy(camera.rotation);
-            }
-          }
-
-          // アステロイド弾丸の移動
-          for (const bullet of asteroidBullets) {
-            if (!bullet.alive) continue;
-            if (bullet.viper) {
-              // バイパーは曲射
-              bullet.mesh.position.add(bullet.velocity);
-              bullet.viperStep = (bullet.viperStep || 0) + 1;
-              // 途中でカーブ
-              if (bullet.viperStep === 15) {
-                bullet.velocity.x += (Math.random() - 0.5) * 0.7;
-                bullet.velocity.y += (Math.random() - 0.5) * 0.2;
-              }
-            } else {
-              bullet.mesh.position.add(bullet.velocity);
-            }
-            if (bullet.mesh.position.y < 0) {
-              scene.remove(bullet.mesh);
-              bullet.alive = false;
-            }
-          }
-
-          // 手元のアステロイド
-          if (viewMode === 'fps' && chargeAsteroid) {
-            chargeAsteroid.visible = true;
-            chargeAsteroid.position.copy(camera.position);
-            const offset = new THREE.Vector3(0.0, -1.2, -1.5);
-            offset.applyEuler(camera.rotation);
-            chargeAsteroid.position.add(offset);
-            chargeAsteroid.rotation.copy(camera.rotation);
-          }
-
-          // レーダー描画
-          if (radarVisible) {
-            radarCtx.clearRect(0, 0, radarCanvas.width, radarCanvas.height);
-            // レーダー円
-            radarCtx.save();
-            radarCtx.globalAlpha = 0.7;
-            radarCtx.beginPath();
-            radarCtx.arc(90, 90, 85, 0, Math.PI * 2);
-            radarCtx.fillStyle = "#222";
-            radarCtx.fill();
-            radarCtx.restore();
-            // プレイヤー中心
-            radarCtx.beginPath();
-            radarCtx.arc(90, 90, 6, 0, Math.PI * 2);
-            radarCtx.fillStyle = "#00bfff";
-            radarCtx.fill();
-            // 建物
-            for (let i = -2; i <= 2; i++) {
-              for (let j = -2; j <= 2; j++) {
-                if (i === 0 && j === 0) continue;
-                const bx = i * 14, bz = j * 14;
-                const dx = bx - playerPos.x;
-                const dz = bz - playerPos.z;
-                const dist = Math.sqrt(dx*dx + dz*dz);
-                if (dist > 60) continue;
-                const angle = Math.atan2(dx, dz) - yaw;
-                const r = dist * 2;
-                const rx = 90 + Math.sin(angle) * r;
-                const ry = 90 + Math.cos(angle) * r;
-                radarCtx.beginPath();
-                radarCtx.arc(rx, ry, 8, 0, Math.PI * 2);
-                radarCtx.fillStyle = "#ff4444";
-                radarCtx.fill();
-              }
-            }
-            // 弾（アステロイド等）
-            for (const bullet of asteroidBullets) {
-              if (!bullet.alive) continue;
-              const dx = bullet.mesh.position.x - playerPos.x;
-              const dz = bullet.mesh.position.z - playerPos.z;
-              const dist = Math.sqrt(dx*dx + dz*dz);
-              if (dist > 60) continue;
-              const angle = Math.atan2(dx, dz) - yaw;
-              const r = dist * 2;
-              const rx = 90 + Math.sin(angle) * r;
-              const ry = 90 + Math.cos(angle) * r;
-              radarCtx.beginPath();
-              radarCtx.arc(rx, ry, 4, 0, Math.PI * 2);
-              radarCtx.fillStyle = "#99ff66";
-              radarCtx.fill();
-            }
-          }
-
-          renderer.render(scene, camera);
-        }
-        animate();
-      }
-    </script>
-  </body>
-</html>
-                const bx = i * 14, bz = j * 14;
-                const dx = bx - playerPos.x;
-                const dz = bz - playerPos.z;
-                const dist = Math.sqrt(dx*dx + dz*dz);
-                if (dist > 60) continue;
-                const angle = Math.atan2(dx, dz) - yaw;
-                const r = dist * 2;
-                const rx = 90 + Math.sin(angle) * r;
-                const ry = 90 + Math.cos(angle) * r;
-                radarCtx.beginPath();
-                radarCtx.arc(rx, ry, 8, 0, Math.PI * 2);
-                radarCtx.fillStyle = "#ff4444";
-                radarCtx.fill();
-              }
-            }
-            // 弾（アステロイド等）
-            for (const bullet of asteroidBullets) {
-              if (!bullet.alive) continue;
-              const dx = bullet.mesh.position.x - playerPos.x;
-              const dz = bullet.mesh.position.z - playerPos.z;
-              const dist = Math.sqrt(dx*dx + dz*dz);
-              if (dist > 60) continue;
-              const angle = Math.atan2(dx, dz) - yaw;
-              const r = dist * 2;
-              const rx = 90 + Math.sin(angle) * r;
-              const ry = 90 + Math.cos(angle) * r;
-              radarCtx.beginPath();
-              radarCtx.arc(rx, ry, 4, 0, Math.PI * 2);
-              radarCtx.fillStyle = "#99ff66";
-              radarCtx.fill();
-            }
-          }
-
-          renderer.render(scene, camera);
-        }
-        animate();
-      }
-    </script>
-  </body>
 </html>
