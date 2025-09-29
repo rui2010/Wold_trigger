@@ -69,85 +69,118 @@
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
     // --- 市街地Aマップ ---
-    // 7x7グリッド、中央広場、道路、建物
+    // ワールドトリガーの市街地Aを細かく再現
+    // 7x7グリッド、中央広場、道路、建物配置・色・屋根・窓・ドア・街路樹・フェンス・電柱
     const mapSize = 7, blockSize = 8, roadWidth = 2;
-    // 建物の高さ・色・屋根形状をアニメ風に
+    // 建物タイプ（アニメ風）
     const buildingTypes = [
-      // 白壁＋青屋根
-      { color: 0xf8f8f8, roof: 0x3366cc, height: 8, roofHeight: 2.2 },
-      // ベージュ壁＋赤屋根
-      { color: 0xf6e3b4, roof: 0xcc3333, height: 10, roofHeight: 2.5 },
-      // 灰色壁＋緑屋根
-      { color: 0xd0d0d0, roof: 0x339966, height: 12, roofHeight: 2.8 },
-      // 薄茶壁＋茶屋根
-      { color: 0xeed9c4, roof: 0x996633, height: 9, roofHeight: 2.0 }
+      { color: 0xf8f8f8, roof: 0x3366cc, height: 8, roofHeight: 2.2, window: 0xffffff, door: 0x996633 },
+      { color: 0xf6e3b4, roof: 0xcc3333, height: 10, roofHeight: 2.5, window: 0xffffff, door: 0x996633 },
+      { color: 0xd0d0d0, roof: 0x339966, height: 12, roofHeight: 2.8, window: 0xffffff, door: 0x996633 },
+      { color: 0xeed9c4, roof: 0x996633, height: 9, roofHeight: 2.0, window: 0xffffff, door: 0x996633 }
+    ];
+    // 建物配置（市街地Aの特徴的な配置を再現）
+    // 0:空き地, 1:家, 2:広場, 3:道路
+    const cityA = [
+      [1,3,1,3,1,3,1],
+      [3,0,3,0,3,0,3],
+      [1,3,2,2,2,3,1],
+      [3,0,2,0,2,0,3],
+      [1,3,2,2,2,3,1],
+      [3,0,3,0,3,0,3],
+      [1,3,1,3,1,3,1]
     ];
     for (let gx = 0; gx < mapSize; gx++) {
       for (let gz = 0; gz < mapSize; gz++) {
-        if (gx >= 2 && gx <= 4 && gz >= 2 && gz <= 4) continue;
-        if (gx === 3 || gz === 3 || gx === 2 || gx === 4 || gz === 2 || gz === 4) continue;
-        if (Math.random() < 0.13) continue;
-        // アニメ風の家タイプをランダム選択
-        const t = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
-        // 本体（壁）
+        const cell = cityA[gx][gz];
+        const px = (gx - 3) * (blockSize + 2);
+        const pz = (gz - 3) * (blockSize + 2);
+        if (cell === 2) continue; // 広場は後で
+        if (cell === 0) continue; // 空き地
+        if (cell === 3) {
+          // 道路
+          const road = new THREE.Mesh(
+            new THREE.BoxGeometry(blockSize + 2, 0.11, blockSize + 2),
+            new THREE.MeshPhongMaterial({ color: 0x888888 })
+          );
+          road.position.set(px, 0.06, pz);
+          scene.add(road);
+          // 街路樹
+          if ((gx + gz) % 2 === 0) {
+            const treeTrunk = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.18, 0.18, 1.2, 8),
+              new THREE.MeshPhongMaterial({ color: 0x8b5a2b })
+            );
+            treeTrunk.position.set(px + 2.5, 0.6, pz + 2.5);
+            scene.add(treeTrunk);
+            const treeLeaf = new THREE.Mesh(
+              new THREE.SphereGeometry(0.7, 12, 12),
+              new THREE.MeshPhongMaterial({ color: 0x44bb44 })
+            );
+            treeLeaf.position.set(px + 2.5, 1.5, pz + 2.5);
+            scene.add(treeLeaf);
+          }
+          // フェンス
+          for (let f = -1; f <= 1; f += 2) {
+            const fence = new THREE.Mesh(
+              new THREE.BoxGeometry(blockSize + 2, 0.18, 0.12),
+              new THREE.MeshPhongMaterial({ color: 0xcccccc })
+            );
+            fence.position.set(px, 0.18, pz + f * (blockSize + 2) / 2);
+            scene.add(fence);
+            const fence2 = new THREE.Mesh(
+              new THREE.BoxGeometry(0.12, 0.18, blockSize + 2),
+              new THREE.MeshPhongMaterial({ color: 0xcccccc })
+            );
+            fence2.position.set(px + f * (blockSize + 2) / 2, 0.18, pz);
+            scene.add(fence2);
+          }
+          // 電柱
+          if (gx % 2 === 1 && gz % 2 === 1) {
+            const pole = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.09, 0.09, 3.5, 8),
+              new THREE.MeshPhongMaterial({ color: 0x888888 })
+            );
+            pole.position.set(px - 2.8, 1.8, pz - 2.8);
+            scene.add(pole);
+          }
+          continue;
+        }
+        // 家
+        const t = buildingTypes[(gx + gz) % buildingTypes.length];
         const house = new THREE.Mesh(
           new THREE.BoxGeometry(blockSize, t.height, blockSize),
           new THREE.MeshPhongMaterial({ color: t.color, emissive: 0x222222, emissiveIntensity: 0.18 })
         );
-        house.position.set((gx - 3) * (blockSize + 2), t.height / 2, (gz - 3) * (blockSize + 2));
+        house.position.set(px, t.height / 2, pz);
         scene.add(house);
-        // 屋根（アニメ風の三角屋根）
+        // 屋根（三角屋根）
         const roof = new THREE.Mesh(
           new THREE.ConeGeometry(blockSize * 0.95, t.roofHeight, 4),
           new THREE.MeshPhongMaterial({ color: t.roof, shininess: 60 })
         );
-        roof.position.set(house.position.x, t.height + t.roofHeight / 2, house.position.z);
+        roof.position.set(px, t.height + t.roofHeight / 2, pz);
         roof.rotation.y = Math.PI / 4;
         scene.add(roof);
-        // 窓（白い四角を壁に貼る）
+        // 窓（壁に貼る）
         for (let wx = -1; wx <= 1; wx += 2) {
           const window = new THREE.Mesh(
             new THREE.BoxGeometry(1.2, 1.2, 0.18),
-            new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xeeeeee, emissiveIntensity: 0.5 })
+            new THREE.MeshPhongMaterial({ color: t.window, emissive: 0xeeeeee, emissiveIntensity: 0.5 })
           );
-          window.position.set(house.position.x + wx * 2.2, house.position.y + 1.2, house.position.z + blockSize / 2 + 0.1);
+          window.position.set(px + wx * 2.2, t.height / 2 + 1.2, pz + blockSize / 2 + 0.1);
           scene.add(window);
         }
-        // ドア（茶色い四角）
+        // ドア
         const door = new THREE.Mesh(
           new THREE.BoxGeometry(1.1, 2.0, 0.18),
-          new THREE.MeshPhongMaterial({ color: 0x996633 })
+          new THREE.MeshPhongMaterial({ color: t.door })
         );
-        door.position.set(house.position.x, house.position.y - t.height / 2 + 1.0, house.position.z + blockSize / 2 + 0.11);
+        door.position.set(px, t.height / 2 - t.height / 2 + 1.0, pz + blockSize / 2 + 0.11);
         scene.add(door);
       }
     }
-    // 地面
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(100, 100),
-      new THREE.MeshPhongMaterial({ color: 0x66cc66 })
-    );
-    ground.rotation.x = -Math.PI/2;
-    scene.add(ground);
-    // 道路
-    const roadMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
-    for (let gx = 2; gx <= 4; gx++) {
-      const road = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth, 0.11, mapSize * (blockSize + 2)),
-        roadMat
-      );
-      road.position.set((gx - 3) * (blockSize + 2), 0.06, 0);
-      scene.add(road);
-    }
-    for (let gz = 2; gz <= 4; gz++) {
-      const road = new THREE.Mesh(
-        new THREE.BoxGeometry(mapSize * (blockSize + 2), 0.11, roadWidth),
-        roadMat
-      );
-      road.position.set(0, 0.06, (gz - 3) * (blockSize + 2));
-      scene.add(road);
-    }
-    // 広場
+    // 広場（中央）
     const plaza = new THREE.Mesh(
       new THREE.BoxGeometry((roadWidth + 1) * (blockSize + 2), 0.12, (roadWidth + 1) * (blockSize + 2)),
       new THREE.MeshPhongMaterial({ color: 0xddddcc })
