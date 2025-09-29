@@ -134,48 +134,134 @@
     // --- トリガー（武器）モデル ---
     function createTriggerModel(type) {
       if (type === "asteroid") {
-        // 六角形弾
-        return new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6), new THREE.MeshPhongMaterial({ color: 0x99ff66, flatShading: true }));
+        // アステロイド：六角形のクリスタル弾（漫画風に透明感とエッジ）
+        const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: 0x99ff66,
+          roughness: 0.25,
+          metalness: 0.2,
+          transmission: 0.7,
+          transparent: true,
+          opacity: 0.7,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.1
+        });
+        return new THREE.Mesh(geo, mat);
       }
       if (type === "hound") {
-        // 球体弾
-        return new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), new THREE.MeshPhongMaterial({ color: 0xffcc66 }));
+        // ハウンド：小さめの球体弾（漫画風に光沢）
+        const geo = new THREE.SphereGeometry(0.28, 18, 18);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: 0xffcc66,
+          roughness: 0.15,
+          metalness: 0.3,
+          transmission: 0.5,
+          transparent: true,
+          opacity: 0.8,
+          clearcoat: 0.5
+        });
+        return new THREE.Mesh(geo, mat);
       }
       if (type === "viper") {
-        // 六角形弾（色違い）
-        return new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6), new THREE.MeshPhongMaterial({ color: 0xffcc33, flatShading: true }));
+        // バイパー：六角形のクリスタル弾（色違い、漫画風）
+        const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: 0xffcc33,
+          roughness: 0.2,
+          metalness: 0.3,
+          transmission: 0.7,
+          transparent: true,
+          opacity: 0.7,
+          clearcoat: 0.7
+        });
+        return new THREE.Mesh(geo, mat);
       }
       if (type === "meteorora") {
-        // メテオラ：赤い球体
-        return new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), new THREE.MeshPhongMaterial({ color: 0xff3333 }));
+        // メテオラ：赤い球体（爆発エフェクト風）
+        const geo = new THREE.SphereGeometry(0.38, 18, 18);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: 0xff3333,
+          roughness: 0.3,
+          metalness: 0.1,
+          transmission: 0.4,
+          transparent: true,
+          opacity: 0.7,
+          clearcoat: 0.4
+        });
+        return new THREE.Mesh(geo, mat);
       }
       if (type === "shield") {
-        // シールド：半透明四角
-        return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.1), new THREE.MeshPhongMaterial({ color: 0x99ccff, transparent: true, opacity: 0.5 }));
+        // シールド：漫画風の六角形バリア（透明感＋エッジ）
+        const geo = new THREE.CylinderGeometry(0.5, 0.5, 0.08, 6);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: 0x99ccff,
+          roughness: 0.1,
+          metalness: 0.1,
+          transmission: 0.9,
+          transparent: true,
+          opacity: 0.5,
+          clearcoat: 0.8,
+          clearcoatRoughness: 0.05,
+          ior: 1.4
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.x = Math.PI / 2;
+        return mesh;
       }
       if (type === "kogetsu") {
-        // 弧月：刀
+        // 弧月：漫画風の刀（黒い柄＋銀色の湾曲刃）
         const group = new THREE.Group();
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.18), new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+        // 刃（湾曲）
+        const bladeCurve = new THREE.TorusGeometry(0.38, 0.04, 12, 40, Math.PI * 0.7);
+        const bladeMat = new THREE.MeshPhysicalMaterial({
+          color: 0xe0e0e0,
+          metalness: 0.8,
+          roughness: 0.2,
+          clearcoat: 0.7
+        });
+        const blade = new THREE.Mesh(bladeCurve, bladeMat);
+        blade.rotation.z = Math.PI / 2;
         blade.position.y = 0.35;
         group.add(blade);
-        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        // 柄
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x222222 }));
         grip.position.y = -0.25;
         group.add(grip);
         return group;
       }
       if (type === "senku") {
-        // 旋空弧月：刀＋青いエフェクト
+        // 旋空弧月：弧月＋青いエフェクト（漫画風）
         const group = new THREE.Group();
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.18), new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+        // 刃（湾曲）
+        const bladeCurve = new THREE.TorusGeometry(0.38, 0.04, 12, 40, Math.PI * 0.7);
+        const bladeMat = new THREE.MeshPhysicalMaterial({
+          color: 0xe0e0e0,
+          metalness: 0.8,
+          roughness: 0.2,
+          clearcoat: 0.7
+        });
+        const blade = new THREE.Mesh(bladeCurve, bladeMat);
+        blade.rotation.z = Math.PI / 2;
         blade.position.y = 0.35;
         group.add(blade);
-        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        // 柄
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x222222 }));
         grip.position.y = -0.25;
         group.add(grip);
-        const effect = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), new THREE.MeshPhongMaterial({ color: 0x3399ff, transparent: true, opacity: 0.5 }));
-        effect.position.y = 0.7;
-        effect.rotation.x = Math.PI/2;
+        // 旋空エフェクト
+        const effect = new THREE.Mesh(
+          new THREE.TorusGeometry(0.55, 0.02, 8, 32, Math.PI * 1.2),
+          new THREE.MeshPhysicalMaterial({
+            color: 0x3399ff,
+            transparent: true,
+            opacity: 0.5,
+            transmission: 0.8,
+            roughness: 0.1,
+            metalness: 0.2
+          })
+        );
+        effect.position.y = 0.45;
+        effect.rotation.z = Math.PI / 2;
         group.add(effect);
         return group;
       }
@@ -316,12 +402,13 @@
       let direction = new THREE.Vector3();
       if (move.forward) direction.z -= 1; // Wで前進
       if (move.backward) direction.z += 1; // Sで後退
-      if (move.left) direction.x -= 1;
-      if (move.right) direction.x += 1;
+      if (move.left) direction.x -= 1;    // Aで左
+      if (move.right) direction.x += 1;   // Dで右
       direction.normalize();
       let moveVector = new THREE.Vector3();
       if (direction.length() > 0) {
-        const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+        // カメラの向きに合わせて移動
+        const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
         const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
         moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
       }
@@ -707,7 +794,8 @@
           direction.normalize();
           let moveVector = new THREE.Vector3();
           if (direction.length() > 0) {
-            const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+            // カメラの向きに合わせて移動
+            const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
             const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
             moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
           }
