@@ -11,6 +11,36 @@
       background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
       z-index: 10;
     }
+    #leftTriggerUI, #rightTriggerUI {
+      position: fixed;
+      bottom: 20px;
+      width: 220px;
+      height: 80px;
+      background: rgba(40,40,60,0.5);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 20;
+      pointer-events: none;
+    }
+    #leftTriggerUI { left: 20px; }
+    #rightTriggerUI { right: 20px; flex-direction: row-reverse; }
+    .trigger-slot {
+      width: 44px; height: 44px;
+      background: rgba(180,180,200,0.18);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 2px;
+      font-size: 0.9em;
+      color: #fff;
+      border: 2px solid transparent;
+      transition: border 0.2s;
+    }
+    .trigger-selected {
+      border: 2px solid #66ccff;
+      background: rgba(80,160,255,0.25);
+    }
   </style>
 </head>
 <body>
@@ -19,6 +49,8 @@
     左クリック:左手トリガー / 右クリック:右手トリガー<br>
     Q:左トリガー変更 / E:右トリガー変更 / F:左特殊 / G:右特殊
   </div>
+  <div id="leftTriggerUI"></div>
+  <div id="rightTriggerUI"></div>
   <canvas id="gameCanvas"></canvas>
   <script>
     // --- THREE.jsセットアップ ---
@@ -153,8 +185,43 @@
 
     // --- トリガーセット ---
     const TRIGGERS = ["asteroid", "hound", "viper", "meteorora", "shield", "kogetsu", "senku"];
+    let leftTriggerSet = ["asteroid", "hound", "viper", "meteorora"];
+    let rightTriggerSet = ["shield", "kogetsu", "senku", "asteroid"];
     let leftTriggerIndex = 0, rightTriggerIndex = 0;
-    let leftTriggerType = TRIGGERS[leftTriggerIndex], rightTriggerType = TRIGGERS[rightTriggerIndex];
+    let leftTriggerType = leftTriggerSet[leftTriggerIndex], rightTriggerType = rightTriggerSet[rightTriggerIndex];
+
+    // --- トリガーUI描画 ---
+    function updateTriggerUI() {
+      const leftUI = document.getElementById('leftTriggerUI');
+      const rightUI = document.getElementById('rightTriggerUI');
+      leftUI.innerHTML = '';
+      rightUI.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'trigger-slot' + (i === leftTriggerIndex ? ' trigger-selected' : '');
+        slot.textContent = getTriggerName(leftTriggerSet[i]);
+        leftUI.appendChild(slot);
+      }
+      for (let i = 0; i < 4; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'trigger-slot' + (i === rightTriggerIndex ? ' trigger-selected' : '');
+        slot.textContent = getTriggerName(rightTriggerSet[i]);
+        rightUI.appendChild(slot);
+      }
+    }
+    function getTriggerName(type) {
+      switch(type) {
+        case "asteroid": return "アステロイド";
+        case "hound": return "ハウンド";
+        case "viper": return "バイパー";
+        case "meteorora": return "メテオラ";
+        case "shield": return "シールド";
+        case "kogetsu": return "弧月";
+        case "senku": return "旋空弧月";
+        default: return type;
+      }
+    }
+    updateTriggerUI();
 
     // --- 入力 ---
     const move = { forward: false, backward: false, left: false, right: false };
@@ -167,12 +234,14 @@
       if (e.code === 'Space') wantJump = true;
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
       if (e.code === 'KeyQ') {
-        leftTriggerIndex = (leftTriggerIndex + 1) % TRIGGERS.length;
-        leftTriggerType = TRIGGERS[leftTriggerIndex];
+        leftTriggerIndex = (leftTriggerIndex + 1) % leftTriggerSet.length;
+        leftTriggerType = leftTriggerSet[leftTriggerIndex];
+        updateTriggerUI();
       }
       if (e.code === 'KeyE') {
-        rightTriggerIndex = (rightTriggerIndex + 1) % TRIGGERS.length;
-        rightTriggerType = TRIGGERS[rightTriggerIndex];
+        rightTriggerIndex = (rightTriggerIndex + 1) % rightTriggerSet.length;
+        rightTriggerType = rightTriggerSet[rightTriggerIndex];
+        updateTriggerUI();
       }
       // F:左特殊, G:右特殊（例:旋空弧月のエフェクトON/OFF）
       if (e.code === 'KeyF') leftSpecialActive = !leftSpecialActive;
@@ -245,8 +314,8 @@
 
       // 移動
       let direction = new THREE.Vector3();
-      if (move.forward) direction.z -= 1;
-      if (move.backward) direction.z += 1;
+      if (move.forward) direction.z -= 1; // Wで前進
+      if (move.backward) direction.z += 1; // Sで後退
       if (move.left) direction.x -= 1;
       if (move.right) direction.x += 1;
       direction.normalize();
@@ -289,12 +358,11 @@
       camera.rotation.x = pitch;
       camera.rotation.z = 0;
 
-      // トリガーの手元表示
+      // トリガーの手元表示（左は左側、右は右側）
       if (leftTriggerObj) {
         leftTriggerObj.position.copy(camera.position);
-        leftTriggerObj.position.add(new THREE.Vector3(-0.6, -1.2, -1.5).applyEuler(camera.rotation));
+        leftTriggerObj.position.add(new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation));
         leftTriggerObj.rotation.copy(camera.rotation);
-        // 旋空弧月の特殊エフェクト
         if (leftTriggerType === "senku" && leftSpecialActive) {
           leftTriggerObj.children.forEach(obj => {
             if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
@@ -307,7 +375,7 @@
       }
       if (rightTriggerObj) {
         rightTriggerObj.position.copy(camera.position);
-        rightTriggerObj.position.add(new THREE.Vector3(0.6, -1.2, -1.5).applyEuler(camera.rotation));
+        rightTriggerObj.position.add(new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation));
         rightTriggerObj.rotation.copy(camera.rotation);
         if (rightTriggerType === "senku" && rightSpecialActive) {
           rightTriggerObj.children.forEach(obj => {
@@ -326,74 +394,6 @@
   </script>
 </body>
 </html>
-          leftLeg.position.set(-0.28, 0.6, 0);
-          group.add(leftLeg);
-          return group;
-        }
-        const player = createYuma();
-        scene.add(player);
-
-        // --- プレイヤー状態 ---
-        let playerPos = new THREE.Vector3(0, 2, 5);
-        let playerVel = new THREE.Vector3(0, 0, 0);
-        let isOnGround = false;
-        let isCrouching = false;
-        let yaw = 0, pitch = -0.18;
-        let viewMode = 'fps';
-
-        // --- 市街地Aマップ配置 ---
-        // 建物配置データ（市街地A風：碁盤目＋道路＋空き地）
-        // 7x7グリッド、中央に広場、道路は2マス幅
-        const mapSize = 7;
-        const blockSize = 8;
-        const roadWidth = 2;
-        const buildingHeight = [8, 10, 12, 14];
-        for (let gx = 0; gx < mapSize; gx++) {
-          for (let gz = 0; gz < mapSize; gz++) {
-            // 中央広場
-            if (gx >= 2 && gx <= 4 && gz >= 2 && gz <= 4) continue;
-            // 道路
-            if (gx === 3 || gz === 3 || gx === 2 || gx === 4 || gz === 2 || gz === 4) continue;
-            // ランダムに空き地も作る
-            if (Math.random() < 0.13) continue;
-            // 建物
-            const h = buildingHeight[Math.floor(Math.random() * buildingHeight.length)];
-            const building = new THREE.Mesh(
-              new THREE.BoxGeometry(blockSize, h, blockSize),
-              new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x444444, emissiveIntensity: 0.25 })
-            );
-            building.position.set((gx - 3) * (blockSize + 2), h / 2, (gz - 3) * (blockSize + 2));
-            scene.add(building);
-          }
-        }
-        // 地面の道路模様
-        const roadMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
-        // 縦道路
-        for (let gx = 2; gx <= 4; gx++) {
-          const road = new THREE.Mesh(
-            new THREE.BoxGeometry(roadWidth, 0.11, mapSize * (blockSize + 2)),
-            roadMat
-          );
-          road.position.set((gx - 3) * (blockSize + 2), 0.06, 0);
-          scene.add(road);
-        }
-        // 横道路
-        for (let gz = 2; gz <= 4; gz++) {
-          const road = new THREE.Mesh(
-            new THREE.BoxGeometry(mapSize * (blockSize + 2), 0.11, roadWidth),
-            roadMat
-          );
-          road.position.set(0, 0.06, (gz - 3) * (blockSize + 2));
-          scene.add(road);
-        }
-        // 中央広場
-        const plaza = new THREE.Mesh(
-          new THREE.BoxGeometry((roadWidth + 1) * (blockSize + 2), 0.12, (roadWidth + 1) * (blockSize + 2)),
-          new THREE.MeshPhongMaterial({ color: 0xddddcc })
-        );
-        plaza.position.set(0, 0.07, 0);
-        scene.add(plaza);
-
         // --- 武器タイプ
         // 右手・左手で独立
         let rightWeaponType = getCurrentRightTrigger();
