@@ -395,27 +395,104 @@
     // --- ジャンプ ---
     let wantJump = false;
 
+    // --- 弾丸管理 ---
+    let bullets = [];
+
     // --- トリガー発動 ---
     let leftTriggerObj = null, rightTriggerObj = null;
     let leftSpecialActive = false, rightSpecialActive = false;
     canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 0 && !leftTriggerObj) {
-        leftTriggerObj = createTriggerModel(leftTriggerType);
-        scene.add(leftTriggerObj);
+      // 玉トリガーは一時表示、弧月/シールドはトグル表示
+      if (e.button === 0) {
+        if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
+          if (!leftTriggerObj) {
+            leftTriggerObj = createTriggerModel(leftTriggerType);
+            scene.add(leftTriggerObj);
+          }
+        } else if (leftTriggerType === "kogetsu") {
+          if (!leftTriggerObj) {
+            leftTriggerObj = createTriggerModel(leftTriggerType);
+            scene.add(leftTriggerObj);
+          } else {
+            scene.remove(leftTriggerObj);
+            leftTriggerObj = null;
+          }
+        } else if (leftTriggerType === "shield") {
+          if (!leftTriggerObj) {
+            leftTriggerObj = createTriggerModel(leftTriggerType);
+            scene.add(leftTriggerObj);
+          } else {
+            scene.remove(leftTriggerObj);
+            leftTriggerObj = null;
+          }
+        }
       }
-      if (e.button === 2 && !rightTriggerObj) {
-        rightTriggerObj = createTriggerModel(rightTriggerType);
-        scene.add(rightTriggerObj);
+      if (e.button === 2) {
+        if (["asteroid", "hound", "viper", "meteorora"].includes(rightTriggerType)) {
+          if (!rightTriggerObj) {
+            rightTriggerObj = createTriggerModel(rightTriggerType);
+            scene.add(rightTriggerObj);
+          }
+        } else if (rightTriggerType === "kogetsu") {
+          if (!rightTriggerObj) {
+            rightTriggerObj = createTriggerModel(rightTriggerType);
+            scene.add(rightTriggerObj);
+          } else {
+            scene.remove(rightTriggerObj);
+            rightTriggerObj = null;
+          }
+        } else if (rightTriggerType === "shield") {
+          if (!rightTriggerObj) {
+            rightTriggerObj = createTriggerModel(rightTriggerType);
+            scene.add(rightTriggerObj);
+          } else {
+            scene.remove(rightTriggerObj);
+            rightTriggerObj = null;
+          }
+        }
       }
     });
+
     canvas.addEventListener('mouseup', (e) => {
+      // 玉トリガー（アステロイド・ハウンド・バイパー・メテオラ）発射
+      function fireBullet(triggerType, hand) {
+        let obj = createTriggerModel(triggerType);
+        scene.add(obj);
+        // 発射方向
+        const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ")).normalize();
+        // 発射位置（手元）
+        let offset = hand === "left"
+          ? new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation)
+          : new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation);
+        obj.position.copy(camera.position).add(offset);
+        obj.rotation.copy(camera.rotation);
+        // 速度
+        let speed = 0.7;
+        if (triggerType === "meteorora") speed = 0.5;
+        if (triggerType === "hound") speed = 0.9;
+        if (triggerType === "viper") speed = 0.8;
+        bullets.push({
+          mesh: obj,
+          velocity: dir.multiplyScalar(speed),
+          alive: true,
+          type: triggerType
+        });
+      }
       if (e.button === 0 && leftTriggerObj) {
-        scene.remove(leftTriggerObj);
-        leftTriggerObj = null;
+        if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
+          fireBullet(leftTriggerType, "left");
+          scene.remove(leftTriggerObj);
+          leftTriggerObj = null;
+        }
+        // 弧月・シールドはトグルなのでmouseupでは消さない
       }
       if (e.button === 2 && rightTriggerObj) {
-        scene.remove(rightTriggerObj);
-        rightTriggerObj = null;
+        if (["asteroid", "hound", "viper", "meteorora"].includes(rightTriggerType)) {
+          fireBullet(rightTriggerType, "right");
+          scene.remove(rightTriggerObj);
+          rightTriggerObj = null;
+        }
+        // 弧月・シールドはトグルなのでmouseupでは消さない
       }
     });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -481,9 +558,16 @@
 
       // トリガーの手元表示（左は左側、右は右側）
       if (leftTriggerObj) {
-        leftTriggerObj.position.copy(camera.position);
-        leftTriggerObj.position.add(new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation));
-        leftTriggerObj.rotation.copy(camera.rotation);
+        if (leftTriggerType === "shield") {
+          // シールドは眼の前
+          leftTriggerObj.position.copy(camera.position);
+          leftTriggerObj.position.add(new THREE.Vector3(0, -0.2, -1.1).applyEuler(camera.rotation));
+          leftTriggerObj.rotation.copy(camera.rotation);
+        } else {
+          leftTriggerObj.position.copy(camera.position);
+          leftTriggerObj.position.add(new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation));
+          leftTriggerObj.rotation.copy(camera.rotation);
+        }
         if (leftTriggerType === "senku" && leftSpecialActive) {
           leftTriggerObj.children.forEach(obj => {
             if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
@@ -495,9 +579,16 @@
         }
       }
       if (rightTriggerObj) {
-        rightTriggerObj.position.copy(camera.position);
-        rightTriggerObj.position.add(new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation));
-        rightTriggerObj.rotation.copy(camera.rotation);
+        if (rightTriggerType === "shield") {
+          // シールドは眼の前
+          rightTriggerObj.position.copy(camera.position);
+          rightTriggerObj.position.add(new THREE.Vector3(0, -0.2, -1.1).applyEuler(camera.rotation));
+          rightTriggerObj.rotation.copy(camera.rotation);
+        } else {
+          rightTriggerObj.position.copy(camera.position);
+          rightTriggerObj.position.add(new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation));
+          rightTriggerObj.rotation.copy(camera.rotation);
+        }
         if (rightTriggerType === "senku" && rightSpecialActive) {
           rightTriggerObj.children.forEach(obj => {
             if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
@@ -509,116 +600,25 @@
         }
       }
 
+      // 玉トリガー弾丸の移動・消去
+      for (let i = 0; i < bullets.length; i++) {
+        const bullet = bullets[i];
+        if (!bullet.alive) continue;
+        bullet.mesh.position.add(bullet.velocity);
+        // 地面より下 or 遠くに行ったら消す
+        if (bullet.mesh.position.y < 0.5 ||
+            bullet.mesh.position.distanceTo(playerPos) > 120) {
+          scene.remove(bullet.mesh);
+          bullet.alive = false;
+        }
+      }
+
       renderer.render(scene, camera);
     }
     animate();
   </script>
 </body>
 </html>
-        // --- 武器タイプ
-        // 右手・左手で独立
-        let rightWeaponType = getCurrentRightTrigger();
-        let leftWeaponType = getCurrentLeftTrigger();
-
-        // 右手・左手の発射状態
-        let rightIsCharging = false, leftIsCharging = false;
-        let rightChargeObj = null, leftChargeObj = null;
-        let rightChargeReady = false, leftChargeReady = false;
-        let rightRaygustMesh = null, leftRaygustMesh = null;
-        let rightScorpionMesh = null, leftScorpionMesh = null;
-        let rightGrasshopperMesh = null, leftGrasshopperMesh = null;
-
-        // 右クリック/左クリックで右手/左手発動
-        canvas.addEventListener('mousedown', (e) => {
-          // 0:左クリック→右手, 2:右クリック→左手
-          if (e.button === 0 && !rightIsCharging && !rightChargeObj) {
-            rightWeaponType = getCurrentRightTrigger();
-            rightIsCharging = true;
-            rightChargeReady = false;
-            // --- 武器モデルをワールドトリガー風に ---
-            if (rightWeaponType === "asteroid") {
-              // アステロイド：六角形の浮遊弾
-              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5, flatShading: true });
-              rightChargeObj = new THREE.Mesh(geo, mat);
-              scene.add(rightChargeObj);
-            } else if (rightWeaponType === "raygust") {
-              // レイガスト：盾＋グリップ
-              const group = new THREE.Group();
-              const shield = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.12), new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 }));
-              shield.position.x = 0.18;
-              group.add(shield);
-              const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 12), new THREE.MeshPhongMaterial({ color: 0x888899 }));
-              grip.rotation.z = Math.PI/2;
-              grip.position.x = -0.18;
-              group.add(grip);
-              rightRaygustMesh = group;
-              scene.add(rightRaygustMesh);
-            } else if (rightWeaponType === "scorpion") {
-              // スコーピオン：赤い三角刃
-              const group = new THREE.Group();
-              const blade = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.7, 3), new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 }));
-              blade.position.y = 0.35;
-              blade.rotation.x = Math.PI;
-              group.add(blade);
-              rightScorpionMesh = group;
-              scene.add(rightScorpionMesh);
-            } else if (rightWeaponType === "egret") {
-              // イーグレット：細長い銃身＋スコープ
-              const group = new THREE.Group();
-              const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-              barrel.rotation.x = Math.PI/2;
-              group.add(barrel);
-              const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 12), new THREE.MeshPhongMaterial({ color: 0x666666 }));
-              scope.position.z = 0.35;
-              scope.rotation.x = Math.PI/2;
-              group.add(scope);
-              rightChargeObj = group;
-              scene.add(rightChargeObj);
-            } else if (rightWeaponType === "viper") {
-              // バイパー：六角形の浮遊弾（色違い）
-              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
-              const mat = new THREE.MeshPhongMaterial({ color: 0xffcc33, emissive: 0x664400, emissiveIntensity: 0.5, flatShading: true });
-              rightChargeObj = new THREE.Mesh(geo, mat);
-              scene.add(rightChargeObj);
-            } else if (rightWeaponType === "grasshopper") {
-              // グラスホッパー：緑色のパネル
-              const geo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x33ff66, emissive: 0x006633, emissiveIntensity: 0.7 });
-              rightGrasshopperMesh = new THREE.Mesh(geo, mat);
-              scene.add(rightGrasshopperMesh);
-            }
-          }
-          if (e.button === 2 && !leftIsCharging && !leftChargeObj) {
-            leftWeaponType = getCurrentLeftTrigger();
-            leftIsCharging = true;
-            leftChargeReady = false;
-            // --- 武器モデルをワールドトリガー風に ---
-            if (leftWeaponType === "asteroid") {
-              const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6);
-              const mat = new THREE.MeshPhongMaterial({ color: 0x99ff66, emissive: 0x336633, emissiveIntensity: 0.5, flatShading: true });
-              leftChargeObj = new THREE.Mesh(geo, mat);
-              scene.add(leftChargeObj);
-            } else if (leftWeaponType === "raygust") {
-              const group = new THREE.Group();
-              const shield = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.12), new THREE.MeshPhongMaterial({ color: 0xccccff, emissive: 0x333366, emissiveIntensity: 0.7 }));
-              shield.position.x = -0.18;
-              group.add(shield);
-              const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 12), new THREE.MeshPhongMaterial({ color: 0x888899 }));
-              grip.rotation.z = Math.PI/2;
-              grip.position.x = 0.18;
-              group.add(grip);
-              leftRaygustMesh = group;
-              scene.add(leftRaygustMesh);
-            } else if (leftWeaponType === "scorpion") {
-              const group = new THREE.Group();
-              const blade = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.7, 3), new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x660000, emissiveIntensity: 0.7 }));
-              blade.position.y = 0.35;
-              blade.rotation.x = Math.PI;
-              group.add(blade);
-              leftScorpionMesh = group;
-              scene.add(leftScorpionMesh);
-            } else if (leftWeaponType === "egret") {
               const group = new THREE.Group();
               const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
               barrel.rotation.x = Math.PI/2;
