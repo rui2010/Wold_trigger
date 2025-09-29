@@ -363,9 +363,29 @@
         rightTriggerType = rightTriggerSet[rightTriggerIndex];
         updateTriggerUI();
       }
-      // F:左特殊, G:右特殊（例:旋空弧月のエフェクトON/OFF）
-      if (e.code === 'KeyF') leftSpecialActive = !leftSpecialActive;
-      if (e.code === 'KeyG') rightSpecialActive = !rightSpecialActive;
+      // F:左特殊, G:右特殊（弧月起動）
+      if (e.code === 'KeyF') {
+        if (leftTriggerType === "kogetsu") {
+          kogetsuActiveLeft = !kogetsuActiveLeft;
+          if (!kogetsuActiveLeft && leftTriggerObj) {
+            scene.remove(leftTriggerObj);
+            leftTriggerObj = null;
+          }
+        } else {
+          leftSpecialActive = !leftSpecialActive;
+        }
+      }
+      if (e.code === 'KeyG') {
+        if (rightTriggerType === "kogetsu") {
+          kogetsuActiveRight = !kogetsuActiveRight;
+          if (!kogetsuActiveRight && rightTriggerObj) {
+            scene.remove(rightTriggerObj);
+            rightTriggerObj = null;
+          }
+        } else {
+          rightSpecialActive = !rightSpecialActive;
+        }
+      }
     });
     window.addEventListener('keyup', (e) => {
       if (e.code === 'KeyW') move.forward = false;
@@ -405,6 +425,9 @@
     // --- トリガー発動 ---
     let leftTriggerObj = null, rightTriggerObj = null;
     let leftSpecialActive = false, rightSpecialActive = false;
+    // --- 弧月攻撃制御 ---
+    let kogetsuActiveLeft = false, kogetsuActiveRight = false;
+    let kogetsuAttackLeft = false, kogetsuAttackRight = false;
     canvas.addEventListener('mousedown', (e) => {
       // 玉トリガーは2回クリックで発射
       if (e.button === 0) {
@@ -415,19 +438,34 @@
             scene.add(leftBulletObj);
             leftBulletReady = true;
           } else {
-            // 2回目クリック：発射
+            // 2回目クリック：発射（消さずにfireBulletで管理）
             fireBullet(leftTriggerType, "left", leftBulletObj);
-            scene.remove(leftBulletObj);
             leftBulletObj = null;
             leftBulletReady = false;
           }
         } else if (leftTriggerType === "kogetsu") {
-          if (!leftTriggerObj) {
-            leftTriggerObj = createTriggerModel(leftTriggerType);
-            scene.add(leftTriggerObj);
-          } else {
-            scene.remove(leftTriggerObj);
-            leftTriggerObj = null;
+          if (kogetsuActiveLeft) {
+            kogetsuAttackLeft = true;
+            // 攻撃アニメーション（例:一瞬色を変える）
+            if (!leftTriggerObj) {
+              leftTriggerObj = createTriggerModel(leftTriggerType);
+              scene.add(leftTriggerObj);
+            }
+            leftTriggerObj.traverse(obj => {
+              if (obj.material && obj.material.color) {
+                obj.material.color.set(0xff4444);
+              }
+            });
+            setTimeout(() => {
+              if (leftTriggerObj) {
+                leftTriggerObj.traverse(obj => {
+                  if (obj.material && obj.material.color) {
+                    obj.material.color.set(0xe0e0e0);
+                  }
+                });
+              }
+              kogetsuAttackLeft = false;
+            }, 120);
           }
         } else if (leftTriggerType === "shield") {
           if (!leftTriggerObj) {
@@ -447,19 +485,33 @@
             scene.add(rightBulletObj);
             rightBulletReady = true;
           } else {
-            // 2回目クリック：発射
+            // 2回目クリック：発射（消さずにfireBulletで管理）
             fireBullet(rightTriggerType, "right", rightBulletObj);
-            scene.remove(rightBulletObj);
             rightBulletObj = null;
             rightBulletReady = false;
           }
         } else if (rightTriggerType === "kogetsu") {
-          if (!rightTriggerObj) {
-            rightTriggerObj = createTriggerModel(rightTriggerType);
-            scene.add(rightTriggerObj);
-          } else {
-            scene.remove(rightTriggerObj);
-            rightTriggerObj = null;
+          if (kogetsuActiveRight) {
+            kogetsuAttackRight = true;
+            if (!rightTriggerObj) {
+              rightTriggerObj = createTriggerModel(rightTriggerType);
+              scene.add(rightTriggerObj);
+            }
+            rightTriggerObj.traverse(obj => {
+              if (obj.material && obj.material.color) {
+                obj.material.color.set(0xff4444);
+              }
+            });
+            setTimeout(() => {
+              if (rightTriggerObj) {
+                rightTriggerObj.traverse(obj => {
+                  if (obj.material && obj.material.color) {
+                    obj.material.color.set(0xe0e0e0);
+                  }
+                });
+              }
+              kogetsuAttackRight = false;
+            }, 120);
           }
         } else if (rightTriggerType === "shield") {
           if (!rightTriggerObj) {
@@ -495,9 +547,8 @@
         alive: true,
         type: triggerType
       });
+      // 発射後もsceneからは消さない（弾丸管理で消える）
     }
-
-    canvas.addEventListener('contextmenu', e => e.preventDefault());
 
     // --- ゲームループ ---
     function animate() {
@@ -626,85 +677,34 @@
         }
       }
 
+      // 弧月表示・非表示
+      if (leftTriggerType === "kogetsu") {
+        if (kogetsuActiveLeft && !leftTriggerObj) {
+          leftTriggerObj = createTriggerModel("kogetsu");
+          scene.add(leftTriggerObj);
+        }
+        if (!kogetsuActiveLeft && leftTriggerObj) {
+          scene.remove(leftTriggerObj);
+          leftTriggerObj = null;
+        }
+      }
+      if (rightTriggerType === "kogetsu") {
+        if (kogetsuActiveRight && !rightTriggerObj) {
+          rightTriggerObj = createTriggerModel("kogetsu");
+          scene.add(rightTriggerObj);
+        }
+        if (!kogetsuActiveRight && rightTriggerObj) {
+          scene.remove(rightTriggerObj);
+          rightTriggerObj = null;
+        }
+      }
+
       renderer.render(scene, camera);
     }
     animate();
   </script>
 </body>
 </html>
-                }
-              }, 350);
-            } else if (rightWeaponType === "egret" && rightChargeObj) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: rightChargeObj,
-                velocity: dir.multiplyScalar(2.0),
-                alive: true
-              });
-              rightChargeObj = null;
-              rightIsCharging = false;
-            } else if (rightWeaponType === "viper" && rightChargeObj) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: rightChargeObj,
-                velocity: dir.multiplyScalar(0.7),
-                alive: true,
-                viper: true,
-                viperStep: 0
-              });
-              rightChargeObj = null;
-              rightIsCharging = false;
-            } else if (rightWeaponType === "grasshopper" && rightGrasshopperMesh) {
-              rightIsCharging = false;
-              scene.remove(rightGrasshopperMesh);
-              rightGrasshopperMesh = null;
-              playerVel.y = 0.38;
-            }
-          }
-          if (e.button === 2 && leftIsCharging) {
-            if (!leftChargeReady) { leftChargeReady = true; return; }
-            // 左手発動
-            if (leftWeaponType === "asteroid" && leftChargeObj) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: leftChargeObj,
-                velocity: dir.multiplyScalar(0.7),
-                alive: true
-              });
-              leftChargeObj = null;
-              leftIsCharging = false;
-              leftChargeReady = false;
-            } else if (leftWeaponType === "raygust" && leftRaygustMesh) {
-              leftIsCharging = false;
-              setTimeout(() => {
-                if (leftRaygustMesh) {
-                  scene.remove(leftRaygustMesh);
-                  leftRaygustMesh = null;
-                }
-              }, 500);
-            } else if (leftWeaponType === "scorpion" && leftScorpionMesh) {
-              leftIsCharging = false;
-              setTimeout(() => {
-                if (leftScorpionMesh) {
-                  scene.remove(leftScorpionMesh);
-                  leftScorpionMesh = null;
-                }
-              }, 350);
-            } else if (leftWeaponType === "egret" && leftChargeObj) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: leftChargeObj,
-                velocity: dir.multiplyScalar(2.0),
-                alive: true
-              });
-              leftChargeObj = null;
-              leftIsCharging = false;
-            } else if (leftWeaponType === "viper" && leftChargeObj) {
-              const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
-              asteroidBullets.push({
-                mesh: leftChargeObj,
-                velocity: dir.multiplyScalar(0.7),
-                alive: true,
                 viper: true,
                 viperStep: 0
               });
