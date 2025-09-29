@@ -1,331 +1,331 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>ワールドトリガー 3Dゲーム</title>
-    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
-    <style>
-      body { margin: 0; overflow: hidden; background: #222; }
-      #info {
-        position: absolute; top: 10px; left: 10px; color: #fff; font-size: 16px;
-        background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
-        z-index: 10;
-      }
-      #startBtn, #triggerBtn, #charaBtn {
-        font-size: 2rem; padding: 1em 2em; border-radius: 12px; border: none;
-        background: #66cc66; color: #fff; cursor: pointer; margin: 0.5em;
-      }
-      #menu {
-        position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-        display: flex; flex-direction: column; align-items: center; z-index: 100;
-      }
-      #opening {
-        position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-        background: #000; color: #fff; display: flex; align-items: center; justify-content: center;
-        font-size: 2.5rem; z-index: 2000; flex-direction: column;
-        transition: opacity 1s;
-      }
-      #opening-logo {
-        font-size: 3.5rem; font-weight: bold; letter-spacing: 0.2em; margin-bottom: 1em;
-      }
-      #opening-fade {
-        opacity: 1; transition: opacity 1s;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="info" style="display:none;">
-      WASD:移動 / スペース:ジャンプ / クリック:トリガー発射 / Shift:しゃがみ / マウス:視点<br>
-      1:アステロイド 2:レイガスト 3:スコーピオン 4:イーグレット 5:バイパー 6:グラスホッパー<br>
-      M:レーダー表示
-    </div>
-    <!-- オープニング -->
-    <div id="opening">
-      <div id="opening-logo">WORLD TRIGGER</div>
-      <div id="opening-fade">ワールドトリガーへようこそ</div>
-    </div>
-    <!-- メニュー -->
-    <div id="menu" style="display:none;">
-      <button id="startBtn">ゲームスタート</button>
-      <button id="triggerBtn">トリガー設定</button>
-      <button id="charaBtn">キャラクター設定</button>
-      <!-- トリガーセットUI -->
-      <div id="trigger-sets" style="margin-top:2em;display:none;">
-        <div style="color:#fff;font-size:1.2em;margin-bottom:0.5em;">右手トリガー</div>
-        <div id="rightTriggers" style="display:flex;gap:0.5em;margin-bottom:1em;"></div>
-        <div style="color:#fff;font-size:1.2em;margin-bottom:0.5em;">左手トリガー</div>
-        <div id="leftTriggers" style="display:flex;gap:0.5em;"></div>
-        <button id="triggerSetOk" style="margin-top:1.5em;">OK</button>
-      </div>
-    </div>
-    <canvas id="gameCanvas" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;"></canvas>
-    <!-- レーダー -->
-    <canvas id="radar" width="180" height="180" style="position:absolute;right:20px;bottom:20px;z-index:50;display:none;background:rgba(0,0,0,0.7);border-radius:50%;"></canvas>
-    <script>
-      // --- オープニング演出 ---
-      const opening = document.getElementById('opening');
-      const openingFade = document.getElementById('opening-fade');
-      const menu = document.getElementById('menu');
-      const info = document.getElementById('info');
-      const canvas = document.getElementById('gameCanvas');
-      canvas.style.display = 'none';
+<head>
+  <meta charset="utf-8">
+  <title>ワールドトリガー 市街地Aテスト</title>
+  <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    #info {
+      position: absolute; top: 10px; left: 10px; color: #fff; font-size: 16px;
+      background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    WASD:移動 / Shift:しゃがみ / Space:ジャンプ / Ctrl+W:走り<br>
+    左クリック:左手トリガー / 右クリック:右手トリガー<br>
+    Q:左トリガー変更 / E:右トリガー変更 / F:左特殊 / G:右特殊
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    // --- THREE.jsセットアップ ---
+    const canvas = document.getElementById('gameCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setClearColor(0x222222);
+    function resizeRenderer() {
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h, true);
+      canvas.width = w; canvas.height = h;
+    }
+    resizeRenderer();
+    window.addEventListener('resize', resizeRenderer);
 
-      // オープニングアニメーション
-      setTimeout(() => {
-        openingFade.textContent = "BORDERシステム起動中...";
-      }, 1200);
-      setTimeout(() => {
-        openingFade.textContent = "トリオン体構築完了";
-      }, 2200);
-      setTimeout(() => {
-        openingFade.textContent = "ワールドトリガー ゲームへようこそ";
-      }, 3200);
-      setTimeout(() => {
-        opening.style.opacity = 0;
-      }, 4200);
-      setTimeout(() => {
-        opening.style.display = 'none';
-        menu.style.display = '';
-      }, 5200);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
-      // --- メニュー画面 ---
-      let started = false;
-      document.getElementById('startBtn').onclick = () => {
-        menu.style.display = 'none';
-        info.style.display = '';
-        canvas.style.display = '';
-        started = true;
-        initGame();
-      };
-      document.getElementById('triggerBtn').onclick = () => {
-        menu.style.display = '';
-        triggerSetsDiv.style.display = '';
-        // セレクトボックス生成
-        rightTriggersDiv.innerHTML = '';
-        leftTriggersDiv.innerHTML = '';
-        for (let i = 0; i < 4; i++) {
-          const sel = document.createElement('select');
-          sel.style.fontSize = '1.1em';
-          for (const trg of TRIGGERS) {
-            const opt = document.createElement('option');
-            opt.value = trg.key;
-            opt.textContent = trg.name;
-            sel.appendChild(opt);
-          }
-          sel.value = rightTriggerSet[i];
-          sel.onchange = () => { rightTriggerSet[i] = sel.value; };
-          rightTriggersDiv.appendChild(sel);
-        }
-        for (let i = 0; i < 4; i++) {
-          const sel = document.createElement('select');
-          sel.style.fontSize = '1.1em';
-          for (const trg of TRIGGERS) {
-            const opt = document.createElement('option');
-            opt.value = trg.key;
-            opt.textContent = trg.name;
-            sel.appendChild(opt);
-          }
-          sel.value = leftTriggerSet[i];
-          sel.onchange = () => { leftTriggerSet[i] = sel.value; };
-          leftTriggersDiv.appendChild(sel);
-        }
-      };
-      document.getElementById('charaBtn').onclick = () => {
-        alert("キャラクター設定は未実装です");
-      };
-      document.getElementById('triggerSetOk').onclick = () => {
-        triggerSetsDiv.style.display = 'none';
-        menu.style.display = '';
-      };
-
-      // レーダー関連
-      let radarVisible = false;
-      const radarCanvas = document.getElementById('radar');
-      const radarCtx = radarCanvas.getContext('2d');
-      window.addEventListener('keydown', (e) => {
-        if (e.code === 'KeyM') {
-          radarVisible = !radarVisible;
-          radarCanvas.style.display = radarVisible ? '' : 'none';
-        }
-      });
-
-      // トリガー種別
-      const TRIGGERS = [
-        { key: "asteroid", name: "アステロイド" },
-        { key: "raygust", name: "レイガスト" },
-        { key: "scorpion", name: "スコーピオン" },
-        { key: "egret", name: "イーグレット" },
-        { key: "viper", name: "バイパー" },
-        { key: "grasshopper", name: "グラスホッパー" }
-      ];
-
-      // 右手・左手トリガーセット（初期値）
-      let rightTriggerSet = ["asteroid", "raygust", "scorpion", "egret"];
-      let leftTriggerSet = ["viper", "grasshopper", "asteroid", "scorpion"];
-      let rightTriggerIndex = 0;
-      let leftTriggerIndex = 0;
-
-      // トリガー設定UI
-      const triggerBtn = document.getElementById('triggerBtn');
-      const triggerSetsDiv = document.getElementById('trigger-sets');
-      const rightTriggersDiv = document.getElementById('rightTriggers');
-      const leftTriggersDiv = document.getElementById('leftTriggers');
-      const triggerSetOkBtn = document.getElementById('triggerSetOk');
-
-      triggerBtn.onclick = () => {
-        menu.style.display = '';
-        triggerSetsDiv.style.display = '';
-        // セレクトボックス生成
-        rightTriggersDiv.innerHTML = '';
-        leftTriggersDiv.innerHTML = '';
-        for (let i = 0; i < 4; i++) {
-          const sel = document.createElement('select');
-          sel.style.fontSize = '1.1em';
-          for (const trg of TRIGGERS) {
-            const opt = document.createElement('option');
-            opt.value = trg.key;
-            opt.textContent = trg.name;
-            sel.appendChild(opt);
-          }
-          sel.value = rightTriggerSet[i];
-          sel.onchange = () => { rightTriggerSet[i] = sel.value; };
-          rightTriggersDiv.appendChild(sel);
-        }
-        for (let i = 0; i < 4; i++) {
-          const sel = document.createElement('select');
-          sel.style.fontSize = '1.1em';
-          for (const trg of TRIGGERS) {
-            const opt = document.createElement('option');
-            opt.value = trg.key;
-            opt.textContent = trg.name;
-            sel.appendChild(opt);
-          }
-          sel.value = leftTriggerSet[i];
-          sel.onchange = () => { leftTriggerSet[i] = sel.value; };
-          leftTriggersDiv.appendChild(sel);
-        }
-      };
-      triggerSetOkBtn.onclick = () => {
-        triggerSetsDiv.style.display = 'none';
-        menu.style.display = '';
-      };
-
-      // トリガー選択キー
-      window.addEventListener('keydown', (e) => {
-        // 右手1-4: Q,W,E,R, 左手1-4: A,S,D,F
-        if (e.code === 'KeyQ') rightTriggerIndex = 0;
-        if (e.code === 'KeyW') rightTriggerIndex = 1;
-        if (e.code === 'KeyE') rightTriggerIndex = 2;
-        if (e.code === 'KeyR') rightTriggerIndex = 3;
-        if (e.code === 'KeyA') leftTriggerIndex = 0;
-        if (e.code === 'KeyS') leftTriggerIndex = 1;
-        if (e.code === 'KeyD') leftTriggerIndex = 2;
-        if (e.code === 'KeyF') leftTriggerIndex = 3;
-      });
-
-      // 現在の右手・左手トリガー
-      function getCurrentRightTrigger() {
-        return rightTriggerSet[rightTriggerIndex];
-      }
-      function getCurrentLeftTrigger() {
-        return leftTriggerSet[leftTriggerIndex];
-      }
-
-      // --- 基本セットアップ ---
-      function initGame() {
-        // --- THREE.jsセットアップ ---
-        // const canvas = document.getElementById('gameCanvas'); ← ここは不要
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-        renderer.setClearColor(0x222222);
-
-        // ★ ウィンドウサイズに合わせてcanvasサイズも変更し、canvas自体のwidth/heightも設定
-        function resizeRenderer() {
-          const w = window.innerWidth;
-          const h = window.innerHeight;
-          renderer.setSize(w, h, true); // ← 第3引数をtrueにしてcanvasのサイズも変更
-          canvas.width = w;
-          canvas.height = h;
-        }
-        resizeRenderer();
-        window.addEventListener('resize', resizeRenderer);
-
-        const scene = new THREE.Scene();
-
-        // カメラ
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 8, 24);
-        playerPos.set(0, 2, 0);
-
-        // ライト
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(10, 10, 10);
-        scene.add(light);
-
-        // 地面
-        const ground = new THREE.Mesh(
-          new THREE.PlaneGeometry(100, 100),
-          new THREE.MeshPhongMaterial({ color: 0x66cc66 })
+    // --- 市街地Aマップ ---
+    // 7x7グリッド、中央広場、道路、建物
+    const mapSize = 7, blockSize = 8, roadWidth = 2;
+    const buildingHeight = [8, 10, 12, 14];
+    for (let gx = 0; gx < mapSize; gx++) {
+      for (let gz = 0; gz < mapSize; gz++) {
+        if (gx >= 2 && gx <= 4 && gz >= 2 && gz <= 4) continue;
+        if (gx === 3 || gz === 3 || gx === 2 || gx === 4 || gz === 2 || gz === 4) continue;
+        if (Math.random() < 0.13) continue;
+        const h = buildingHeight[Math.floor(Math.random() * buildingHeight.length)];
+        const building = new THREE.Mesh(
+          new THREE.BoxGeometry(blockSize, h, blockSize),
+          new THREE.MeshPhongMaterial({ color: 0xcccccc, emissive: 0x444444, emissiveIntensity: 0.25 })
         );
-        ground.rotation.x = -Math.PI/2;
-        scene.add(ground);
+        building.position.set((gx - 3) * (blockSize + 2), h / 2, (gz - 3) * (blockSize + 2));
+        scene.add(building);
+      }
+    }
+    // 地面
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshPhongMaterial({ color: 0x66cc66 })
+    );
+    ground.rotation.x = -Math.PI/2;
+    scene.add(ground);
+    // 道路
+    const roadMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    for (let gx = 2; gx <= 4; gx++) {
+      const road = new THREE.Mesh(
+        new THREE.BoxGeometry(roadWidth, 0.11, mapSize * (blockSize + 2)),
+        roadMat
+      );
+      road.position.set((gx - 3) * (blockSize + 2), 0.06, 0);
+      scene.add(road);
+    }
+    for (let gz = 2; gz <= 4; gz++) {
+      const road = new THREE.Mesh(
+        new THREE.BoxGeometry(mapSize * (blockSize + 2), 0.11, roadWidth),
+        roadMat
+      );
+      road.position.set(0, 0.06, (gz - 3) * (blockSize + 2));
+      scene.add(road);
+    }
+    // 広場
+    const plaza = new THREE.Mesh(
+      new THREE.BoxGeometry((roadWidth + 1) * (blockSize + 2), 0.12, (roadWidth + 1) * (blockSize + 2)),
+      new THREE.MeshPhongMaterial({ color: 0xddddcc })
+    );
+    plaza.position.set(0, 0.07, 0);
+    scene.add(plaza);
 
-        // --- キャラクター（空閑遊真風） ---
-        function createYuma() {
-          const group = new THREE.Group();
-          // 体
-          const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2, 0.6), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
-          body.position.y = 2;
-          group.add(body);
-          // 頭
-          const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 20), new THREE.MeshPhongMaterial({ color: 0xf8f8f8 }));
-          head.position.y = 3.4;
-          group.add(head);
-          // 髪（前髪・サイド・後ろ）
-          const hairMat = new THREE.MeshPhongMaterial({ color: 0xf8f8f8 });
-          for (let i = 0; i < 3; i++) {
-            const bang = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), hairMat);
-            bang.position.set(-0.18 + i * 0.18, 4.0, 0.55);
-            bang.rotation.x = Math.PI / 1.7;
-            group.add(bang);
-          }
-          for (let i = 0; i < 2; i++) {
-            const side = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 10), hairMat);
-            side.position.set(i === 0 ? -0.38 : 0.38, 3.8, 0.38);
-            side.rotation.x = Math.PI / 1.5;
-            group.add(side);
-          }
-          for (let i = 0; i < 3; i++) {
-            const back = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 10), hairMat);
-            back.position.set(-0.18 + i * 0.18, 3.7, -0.45);
-            back.rotation.x = -Math.PI / 1.7;
-            group.add(back);
-          }
-          // 目
-          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-          const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-          leftEye.position.set(-0.16, 3.55, 0.62);
-          group.add(leftEye);
-          const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), eyeMat);
-          rightEye.position.set(0.16, 3.55, 0.62);
-          group.add(rightEye);
-          // 口
-          const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), new THREE.MeshBasicMaterial({ color: 0x222222 }));
-          mouth.position.set(0, 3.38, 0.63);
-          group.add(mouth);
-          // 両腕
-          const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
-          rightArm.position.set(0.65, 2.3, 0);
-          rightArm.rotation.z = Math.PI / 10;
-          group.add(rightArm);
-          const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
-          leftArm.position.set(-0.65, 2.3, 0);
-          leftArm.rotation.z = -Math.PI / 10;
-          group.add(leftArm);
-          // 足
-          const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
-          rightLeg.position.set(0.28, 0.6, 0);
-          group.add(rightLeg);
-          const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2, 12), new THREE.MeshPhongMaterial({ color: 0x00bfff }));
+    // --- ライト ---
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(10, 20, 10);
+    scene.add(light);
+
+    // --- プレイヤー ---
+    let playerPos = new THREE.Vector3(0, 2, 0);
+    let playerVel = new THREE.Vector3(0, 0, 0);
+    let isOnGround = false, isCrouching = false, isRunning = false;
+    let yaw = 0, pitch = 0;
+    let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
+
+    // --- トリガー（武器）モデル ---
+    function createTriggerModel(type) {
+      if (type === "asteroid") {
+        // 六角形弾
+        return new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6), new THREE.MeshPhongMaterial({ color: 0x99ff66, flatShading: true }));
+      }
+      if (type === "hound") {
+        // 球体弾
+        return new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), new THREE.MeshPhongMaterial({ color: 0xffcc66 }));
+      }
+      if (type === "viper") {
+        // 六角形弾（色違い）
+        return new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.7, 6), new THREE.MeshPhongMaterial({ color: 0xffcc33, flatShading: true }));
+      }
+      if (type === "meteorora") {
+        // メテオラ：赤い球体
+        return new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16), new THREE.MeshPhongMaterial({ color: 0xff3333 }));
+      }
+      if (type === "shield") {
+        // シールド：半透明四角
+        return new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 0.1), new THREE.MeshPhongMaterial({ color: 0x99ccff, transparent: true, opacity: 0.5 }));
+      }
+      if (type === "kogetsu") {
+        // 弧月：刀
+        const group = new THREE.Group();
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.18), new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+        blade.position.y = 0.35;
+        group.add(blade);
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        grip.position.y = -0.25;
+        group.add(grip);
+        return group;
+      }
+      if (type === "senku") {
+        // 旋空弧月：刀＋青いエフェクト
+        const group = new THREE.Group();
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.18), new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+        blade.position.y = 0.35;
+        group.add(blade);
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        grip.position.y = -0.25;
+        group.add(grip);
+        const effect = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 8), new THREE.MeshPhongMaterial({ color: 0x3399ff, transparent: true, opacity: 0.5 }));
+        effect.position.y = 0.7;
+        effect.rotation.x = Math.PI/2;
+        group.add(effect);
+        return group;
+      }
+      // デフォルト
+      return new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({ color: 0x999999 }));
+    }
+
+    // --- トリガーセット ---
+    const TRIGGERS = ["asteroid", "hound", "viper", "meteorora", "shield", "kogetsu", "senku"];
+    let leftTriggerIndex = 0, rightTriggerIndex = 0;
+    let leftTriggerType = TRIGGERS[leftTriggerIndex], rightTriggerType = TRIGGERS[rightTriggerIndex];
+
+    // --- 入力 ---
+    const move = { forward: false, backward: false, left: false, right: false };
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') move.forward = true;
+      if (e.code === 'KeyS') move.backward = true;
+      if (e.code === 'KeyA') move.left = true;
+      if (e.code === 'KeyD') move.right = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
+      if (e.code === 'Space') wantJump = true;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
+      if (e.code === 'KeyQ') {
+        leftTriggerIndex = (leftTriggerIndex + 1) % TRIGGERS.length;
+        leftTriggerType = TRIGGERS[leftTriggerIndex];
+      }
+      if (e.code === 'KeyE') {
+        rightTriggerIndex = (rightTriggerIndex + 1) % TRIGGERS.length;
+        rightTriggerType = TRIGGERS[rightTriggerIndex];
+      }
+      // F:左特殊, G:右特殊（例:旋空弧月のエフェクトON/OFF）
+      if (e.code === 'KeyF') leftSpecialActive = !leftSpecialActive;
+      if (e.code === 'KeyG') rightSpecialActive = !rightSpecialActive;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') move.forward = false;
+      if (e.code === 'KeyS') move.backward = false;
+      if (e.code === 'KeyA') move.left = false;
+      if (e.code === 'KeyD') move.right = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = false;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = false;
+    });
+
+    // --- 視点 ---
+    canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === canvas) {
+        document.addEventListener('mousemove', onMouseMove, false);
+      } else {
+        document.removeEventListener('mousemove', onMouseMove, false);
+      }
+    });
+    function onMouseMove(e) {
+      const sensitivity = 0.002;
+      yaw -= e.movementX * sensitivity;
+      pitch -= e.movementY * sensitivity;
+      pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
+    }
+
+    // --- ジャンプ ---
+    let wantJump = false;
+
+    // --- トリガー発動 ---
+    let leftTriggerObj = null, rightTriggerObj = null;
+    let leftSpecialActive = false, rightSpecialActive = false;
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && !leftTriggerObj) {
+        leftTriggerObj = createTriggerModel(leftTriggerType);
+        scene.add(leftTriggerObj);
+      }
+      if (e.button === 2 && !rightTriggerObj) {
+        rightTriggerObj = createTriggerModel(rightTriggerType);
+        scene.add(rightTriggerObj);
+      }
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 0 && leftTriggerObj) {
+        scene.remove(leftTriggerObj);
+        leftTriggerObj = null;
+      }
+      if (e.button === 2 && rightTriggerObj) {
+        scene.remove(rightTriggerObj);
+        rightTriggerObj = null;
+      }
+    });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- ゲームループ ---
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // 移動速度
+      let speed = isRunning ? 0.22 : 0.13;
+      if (isCrouching) {
+        playerHeight = crouchHeight;
+      } else {
+        playerHeight = standHeight;
+      }
+
+      // 移動
+      let direction = new THREE.Vector3();
+      if (move.forward) direction.z -= 1;
+      if (move.backward) direction.z += 1;
+      if (move.left) direction.x -= 1;
+      if (move.right) direction.x += 1;
+      direction.normalize();
+      let moveVector = new THREE.Vector3();
+      if (direction.length() > 0) {
+        const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+        const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+        moveVector = forward.multiplyScalar(direction.z).add(right.multiplyScalar(direction.x)).normalize();
+      }
+      playerVel.x = moveVector.x * speed;
+      playerVel.z = moveVector.z * speed;
+
+      // ジャンプ
+      if (wantJump && isOnGround) {
+        playerVel.y = 0.18;
+        isOnGround = false;
+      }
+      wantJump = false;
+
+      // 重力
+      playerVel.y += -0.45 * 0.5;
+
+      // 位置更新
+      playerPos.add(playerVel);
+
+      // 地面判定
+      if (playerPos.y < 1.0) {
+        playerPos.y = 1.0;
+        playerVel.y = 0;
+        isOnGround = true;
+      } else {
+        isOnGround = false;
+      }
+
+      // カメラ
+      camera.position.copy(playerPos);
+      camera.position.y += playerHeight - 1.8;
+      camera.rotation.order = "YXZ";
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      camera.rotation.z = 0;
+
+      // トリガーの手元表示
+      if (leftTriggerObj) {
+        leftTriggerObj.position.copy(camera.position);
+        leftTriggerObj.position.add(new THREE.Vector3(-0.6, -1.2, -1.5).applyEuler(camera.rotation));
+        leftTriggerObj.rotation.copy(camera.rotation);
+        // 旋空弧月の特殊エフェクト
+        if (leftTriggerType === "senku" && leftSpecialActive) {
+          leftTriggerObj.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
+          });
+        } else if (leftTriggerType === "senku") {
+          leftTriggerObj.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
+          });
+        }
+      }
+      if (rightTriggerObj) {
+        rightTriggerObj.position.copy(camera.position);
+        rightTriggerObj.position.add(new THREE.Vector3(0.6, -1.2, -1.5).applyEuler(camera.rotation));
+        rightTriggerObj.rotation.copy(camera.rotation);
+        if (rightTriggerType === "senku" && rightSpecialActive) {
+          rightTriggerObj.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
+          });
+        } else if (rightTriggerType === "senku") {
+          rightTriggerObj.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
+          });
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
           leftLeg.position.set(-0.28, 0.6, 0);
           group.add(leftLeg);
           return group;
