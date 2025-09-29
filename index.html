@@ -358,13 +358,14 @@
 
     // --- 入力 ---
     const move = { forward: false, backward: false, left: false, right: false };
+    let jumpRequested = false;
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyW') move.forward = true;
       if (e.code === 'KeyS') move.backward = true;
       if (e.code === 'KeyA') move.left = true;
       if (e.code === 'KeyD') move.right = true;
+      if (e.code === 'Space') jumpRequested = true;
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
-      if (e.code === 'Space') wantJump = true;
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
       if (e.code === 'KeyQ') {
         leftTriggerIndex = (leftTriggerIndex + 1) % leftTriggerSet.length;
@@ -461,10 +462,11 @@
       if (e.button === 0) {
         if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
           if (!leftBulletReady) {
-            // 1回目クリック：表示
-            leftBulletObj = createTriggerModel(leftTriggerType, leftBulletSplit);
+            // 1回目クリック：必ず分割なしで表示
+            leftBulletObj = createTriggerModel(leftTriggerType, false);
             scene.add(leftBulletObj);
             leftBulletReady = true;
+            leftBulletSplit = false; // 分割状態を解除
           } else {
             // 2回目クリック：発射
             fireBullet(leftTriggerType, "left", leftBulletObj, leftBulletSplit);
@@ -472,28 +474,10 @@
             leftBulletReady = false;
           }
         } else if (leftTriggerType === "kogetsu") {
-          if (kogetsuActiveLeft) {
-            kogetsuAttackLeft = true;
-            // 攻撃アニメーション（例:一瞬色を変える）
-            if (!leftTriggerObj) {
-              leftTriggerObj = createTriggerModel(leftTriggerType);
-              scene.add(leftTriggerObj);
-            }
-            leftTriggerObj.traverse(obj => {
-              if (obj.material && obj.material.color) {
-                obj.material.color.set(0xff4444);
-              }
-            });
-            setTimeout(() => {
-              if (leftTriggerObj) {
-                leftTriggerObj.traverse(obj => {
-                  if (obj.material && obj.material.color) {
-                    obj.material.color.set(0xe0e0e0);
-                  }
-                });
-              }
-              kogetsuAttackLeft = false;
-            }, 120);
+          kogetsuActiveLeft = !kogetsuActiveLeft;
+          if (!kogetsuActiveLeft && leftTriggerObj) {
+            scene.remove(leftTriggerObj);
+            leftTriggerObj = null;
           }
         } else if (leftTriggerType === "shield") {
           if (!leftTriggerObj) {
@@ -508,10 +492,11 @@
       if (e.button === 2) {
         if (["asteroid", "hound", "viper", "meteorora"].includes(rightTriggerType)) {
           if (!rightBulletReady) {
-            // 1回目クリック：表示
-            rightBulletObj = createTriggerModel(rightTriggerType, rightBulletSplit);
+            // 1回目クリック：必ず分割なしで表示
+            rightBulletObj = createTriggerModel(rightTriggerType, false);
             scene.add(rightBulletObj);
             rightBulletReady = true;
+            rightBulletSplit = false; // 分割状態を解除
           } else {
             // 2回目クリック：発射
             fireBullet(rightTriggerType, "right", rightBulletObj, rightBulletSplit);
@@ -519,27 +504,10 @@
             rightBulletReady = false;
           }
         } else if (rightTriggerType === "kogetsu") {
-          if (kogetsuActiveRight) {
-            kogetsuAttackRight = true;
-            if (!rightTriggerObj) {
-              rightTriggerObj = createTriggerModel(rightTriggerType);
-              scene.add(rightTriggerObj);
-            }
-            rightTriggerObj.traverse(obj => {
-              if (obj.material && obj.material.color) {
-                obj.material.color.set(0xff4444);
-              }
-            });
-            setTimeout(() => {
-              if (rightTriggerObj) {
-                rightTriggerObj.traverse(obj => {
-                  if (obj.material && obj.material.color) {
-                    obj.material.color.set(0xe0e0e0);
-                  }
-                });
-              }
-              kogetsuAttackRight = false;
-            }, 120);
+          kogetsuActiveRight = !kogetsuActiveRight;
+          if (!kogetsuActiveRight && rightTriggerObj) {
+            scene.remove(rightTriggerObj);
+            rightTriggerObj = null;
           }
         } else if (rightTriggerType === "shield") {
           if (!rightTriggerObj) {
@@ -629,12 +597,12 @@
       playerVel.x = moveVector.x * speed;
       playerVel.z = moveVector.z * speed;
 
-      // ジャンプ
-      if (wantJump && isOnGround) {
+      // ジャンプ（スペースキーでジャンプ）
+      if (jumpRequested && isOnGround) {
         playerVel.y = 0.18;
         isOnGround = false;
       }
-      wantJump = false;
+      jumpRequested = false;
 
       // 重力
       playerVel.y += -0.45 * 0.5;
@@ -767,7 +735,39 @@
   </script>
 </body>
 </html>
-          // カメラ
+              })
+            );
+            explosion.position.copy(bullet.mesh.position);
+            scene.add(explosion);
+            explosions.push({ mesh: explosion, time: 0 });
+            scene.remove(bullet.mesh);
+            bullet.alive = false;
+            continue;
+          }
+        }
+        // 地面より下 or 遠くに行ったら消す
+        if (bullet.mesh.position.y < 0.5 ||
+            bullet.mesh.position.distanceTo(playerPos) > 120) {
+          scene.remove(bullet.mesh);
+          bullet.alive = false;
+        }
+      }
+
+      // メテオラ爆発エフェクトの消去（0.5秒で消える）
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].time += 1 / 60;
+        if (explosions[i].time > 0.5) {
+          scene.remove(explosions[i].mesh);
+          explosions.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
           if (viewMode === 'fps') {
             camera.position.set(playerPos.x, playerPos.y + 6, playerPos.z + 24);
             camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
