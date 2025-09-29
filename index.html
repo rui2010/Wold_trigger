@@ -69,8 +69,8 @@
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
     // --- 市街地Aマップ ---
-    // ワールドトリガーの市街地Aを細かく再現
-    // 7x7グリッド、中央広場、道路、建物配置・色・屋根・窓・ドア・街路樹・フェンス・電柱
+    // ワールドトリガー市街地Aの構造を再現
+    // 7x7グリッド、中央広場、道路、建物配置（公式マップ構造に近い配置）
     const mapSize = 7, blockSize = 8, roadWidth = 2;
     // 建物タイプ（アニメ風）
     const buildingTypes = [
@@ -79,22 +79,15 @@
       { color: 0xd0d0d0, roof: 0x339966, height: 12, roofHeight: 2.8, window: 0xffffff, door: 0x996633 },
       { color: 0xeed9c4, roof: 0x996633, height: 9, roofHeight: 2.0, window: 0xffffff, door: 0x996633 }
     ];
-    // 建物配置（市街地Aの特徴的な配置を再現）
-    // 0:空き地, 1:家, 2:広場, 3:道路
+    // 市街地A公式風配置（0:空き地, 1:家, 2:広場, 3:道路, 4:大きな建物）
     const cityA = [
-      [1,3,1,3,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [3,0,3,0,3,0,3,0,0,0,0,0,0,0,0,0,0,0,3],
-      [1,3,2,2,2,3,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [3,0,2,0,2,0,3,0,0,0,0,0,0,0,0,0,0,0,3],
-      [1,3,2,2,2,3,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [3,0,3,0,3,0,3,0,0,0,0,0,0,0,0,0,0,0,3],
-      [1,3,1,3,1,3,1,3,1,3,1,3,1,3,1,3,1,3,1],
-      [3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3],
-      [1,3,2,2,2,3,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [3,0,2,0,2,0,3,0,3,0,3,0,3,0,3,0,3,0,3],
-      [1,3,2,2,2,3,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3],
-      [1,3,1,3,1,3,1,3,2,1,3,3,1,1,1,1,2,1,2]
+      [1,3,1,3,1,3,1],
+      [3,0,3,0,3,0,3],
+      [1,3,2,2,2,3,1],
+      [3,0,2,4,2,0,3],
+      [1,3,2,2,2,3,1],
+      [3,0,3,0,3,0,3],
+      [1,3,1,3,1,3,1]
     ];
     for (let gx = 0; gx < mapSize; gx++) {
       for (let gz = 0; gz < mapSize; gz++) {
@@ -150,6 +143,24 @@
             pole.position.set(px - 2.8, 1.8, pz - 2.8);
             scene.add(pole);
           }
+          continue;
+        }
+        if (cell === 4) {
+          // 大きな建物（公式マップ中央のビル風）
+          const t = buildingTypes[2];
+          const building = new THREE.Mesh(
+            new THREE.BoxGeometry(blockSize * 1.5, t.height * 1.5, blockSize * 1.5),
+            new THREE.MeshPhongMaterial({ color: 0xaaaaaa, emissive: 0x222222, emissiveIntensity: 0.18 })
+          );
+          building.position.set(px, t.height * 0.75, pz);
+          scene.add(building);
+          // 屋上
+          const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(blockSize * 1.5, 0.5, blockSize * 1.5),
+            new THREE.MeshPhongMaterial({ color: 0x666666 })
+          );
+          roof.position.set(px, t.height * 1.5 + 0.25, pz);
+          scene.add(roof);
           continue;
         }
         // 家
@@ -760,23 +771,6 @@
   </script>
 </body>
 </html>
-          });
-        } else if (rightTriggerType === "senku") {
-          rightTriggerObj.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
-          });
-        }
-      }
-
-      // 玉トリガー弾丸の移動・消去
-      for (let i = 0; i < bullets.length; i++) {
-        const bullet = bullets[i];
-        if (!bullet.alive) continue;
-        bullet.mesh.position.add(bullet.velocity);
-        // メテオラ爆発判定
-        if (bullet.type === "meteorora") {
-          // 地面に着弾したら爆発
-          if (bullet.mesh.position.y < 0.5) {
             // 爆発エフェクト生成
             const explosion = new THREE.Mesh(
               new THREE.SphereGeometry(2.2, 24, 24),
