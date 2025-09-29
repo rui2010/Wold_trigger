@@ -56,7 +56,7 @@
     // --- THREE.jsセットアップ ---
     const canvas = document.getElementById('gameCanvas');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setClearColor(0x222222);
+    renderer.setClearColor(0x000000); // 黒い画面
     function resizeRenderer() {
       const w = window.innerWidth, h = window.innerHeight;
       renderer.setSize(w, h, true);
