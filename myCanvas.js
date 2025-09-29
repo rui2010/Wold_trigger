@@ -212,6 +212,44 @@ function init() {
     miniLight.position.set(5, 10, 5);
     miniScene.add(miniLight);
 
+    // --- スコーピオン（Scorpion）モデル生成 ---
+    function createScorpionModel() {
+        // 刃部分（細長い湾曲した緑色の箱）
+        const group = new THREE.Group();
+        // 刃本体
+        const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, 0.04, 1.0),
+            new THREE.MeshPhongMaterial({ color: 0x33ff33, emissive: 0x33ff33, emissiveIntensity: 0.7 })
+        );
+        blade.position.z = 0.5;
+        blade.position.y = 0.08;
+        blade.rotation.x = Math.PI / 10;
+        group.add(blade);
+        // 柄
+        const grip = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.22, 12),
+            new THREE.MeshPhongMaterial({ color: 0x222222 })
+        );
+        grip.position.z = -0.4;
+        grip.position.y = -0.08;
+        group.add(grip);
+        // 鍔
+        const tsuba = new THREE.Mesh(
+            new THREE.TorusGeometry(0.07, 0.012, 8, 24),
+            new THREE.MeshPhongMaterial({ color: 0x888888 })
+        );
+        tsuba.position.z = -0.3;
+        tsuba.position.y = 0.01;
+        group.add(tsuba);
+        return group;
+    }
+
+    // --- スコーピオン表示例 ---
+    // 画面中央にスコーピオンを表示（テスト用）
+    const scorpion = createScorpionModel();
+    scorpion.position.set(0, 2.2, 0);
+    scene.add(scorpion);
+
     // アニメーションループ
     function animate() {
         requestAnimationFrame(animate);
