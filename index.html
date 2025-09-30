@@ -81,6 +81,14 @@
     const ambient = new THREE.AmbientLight(0xffffff, 2.2);
     scene.add(ambient);
 
+    // シーン・カメラ・レンダラーの初期化後に追加
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // やや明るめ
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 7);
+    scene.add(directionalLight);
+
     // --- 市街地Aマップ ---
     const mapSize = 7, blockSize = 8, roadWidth = 2;
     const buildingTypes = [
@@ -754,6 +762,21 @@
     animate();
 
     // --- 視点操作（TPS用） ---
+    canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === canvas) {
+        document.addEventListener('mousemove', onMouseMove, false);
+      } else {
+        document.removeEventListener('mousemove', onMouseMove, false);
+      }
+    });
+    function onMouseMove(e) {
+      const sensitivity = 0.002;
+      yaw -= e.movementX * sensitivity;
+      pitch -= e.movementY * sensitivity;
+      pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, pitch)); // TPSは上下制限
+    }
+
     // 視点移動のバグ修正：PointerLock取得時のみmousemoveを有効化
     let pointerLocked = false;
     canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
