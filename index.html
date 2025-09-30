@@ -215,52 +215,6 @@
     let yaw = 0, pitch = 0;
     let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
 
-    // --- プレイヤーモデル（TPS用） ---
-    let playerMesh = null;
-    function createPlayerMesh() {
-      // シンプルな人型（胴体＋頭＋手足）
-      const group = new THREE.Group();
-      // 胴体
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.7, 1.2, 0.4),
-        new THREE.MeshPhongMaterial({ color: 0x6699cc, shininess: 80 })
-      );
-      body.position.y = 1.0;
-      group.add(body);
-      // 頭
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.32, 16, 16),
-        new THREE.MeshPhongMaterial({ color: 0xffe0b0, shininess: 60 })
-      );
-      head.position.y = 1.8;
-      group.add(head);
-      // 左腕
-      const leftArm = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.7, 0.18),
-        new THREE.MeshPhongMaterial({ color: 0x6699cc, shininess: 80 })
-      );
-      leftArm.position.set(-0.45, 1.1, 0);
-      group.add(leftArm);
-      // 右腕
-      const rightArm = leftArm.clone();
-      rightArm.position.x = 0.45;
-      group.add(rightArm);
-      // 左足
-      const leftLeg = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.7, 0.18),
-        new THREE.MeshPhongMaterial({ color: 0x333366, shininess: 40 })
-      );
-      leftLeg.position.set(-0.18, 0.35, 0);
-      group.add(leftLeg);
-      // 右足
-      const rightLeg = leftLeg.clone();
-      rightLeg.position.x = 0.18;
-      group.add(rightLeg);
-      return group;
-    }
-    playerMesh = createPlayerMesh();
-    scene.add(playerMesh);
-
     // --- トリガー（武器）モデル ---
     function createTriggerModel(type, split = false) {
       // 玉トリガー（アステロイド・ハウンド・バイパー・メテオラ）は正方形＋蛍光白＋緑縁
@@ -420,6 +374,196 @@
       return new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 40 }));
     }
 
+    // --- トリガー手元表示（TPS用） ---
+    // 左手・右手のトリガーをプレイヤーモデルの手元に表示
+    let leftTriggerObj = null, rightTriggerObj = null;
+    let leftBulletObj = null, rightBulletObj = null;
+    let leftBulletReady = false, rightBulletReady = false;
+    let leftSpecialActive = false, rightSpecialActive = false;
+    let kogetsuActiveLeft = false, kogetsuActiveRight = false;
+
+    // --- トリガーセット ---
+    const TRIGGERS = ["asteroid", "hound", "viper", "meteorora", "shield", "kogetsu", "senku"];
+    let leftTriggerSet = ["asteroid", "hound", "viper", "meteorora"];
+    let rightTriggerSet = ["shield", "kogetsu", "senku", "asteroid"];
+    let leftTriggerIndex = 0, rightTriggerIndex = 0;
+    let leftTriggerType = leftTriggerSet[leftTriggerIndex], rightTriggerType = rightTriggerSet[rightTriggerIndex];
+
+    // --- トリガーUI描画 ---
+    function updateTriggerUI() {
+      const leftUI = document.getElementById('leftTriggerUI');
+      const rightUI = document.getElementById('rightTriggerUI');
+      leftUI.innerHTML = '';
+      rightUI.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'trigger-slot' + (i === leftTriggerIndex ? ' trigger-selected' : '');
+        slot.textContent = getTriggerName(leftTriggerSet[i]);
+        leftUI.appendChild(slot);
+      }
+      for (let i = 0; i < 4; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'trigger-slot' + (i === rightTriggerIndex ? ' trigger-selected' : '');
+        slot.textContent = getTriggerName(rightTriggerSet[i]);
+        rightUI.appendChild(slot);
+      }
+    }
+    function getTriggerName(type) {
+      switch(type) {
+        case "asteroid": return "アステロイド";
+        case "hound": return "ハウンド";
+        case "viper": return "バイパー";
+        case "meteorora": return "メテオラ";
+        case "shield": return "シールド";
+        case "kogetsu": return "弧月";
+        case "senku": return "旋空弧月";
+        default: return type;
+      }
+    }
+    updateTriggerUI();
+
+    // --- 入力 ---
+    const move = { forward: false, backward: false, left: false, right: false };
+    let jumpRequested = false;
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') move.forward = true;
+      if (e.code === 'KeyS') move.backward = true;
+      if (e.code === 'KeyA') move.left = true;
+      if (e.code === 'KeyD') move.right = true;
+      if (e.code === 'Space') jumpRequested = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
+      if (e.code === 'KeyQ') {
+        // 左トリガー切り替え時に表示中のトリガーを消す
+        if (leftBulletObj) { scene.remove(leftBulletObj); leftBulletObj = null; leftBulletReady = false; }
+        if (leftTriggerObj) { scene.remove(leftTriggerObj); leftTriggerObj = null; }
+        leftTriggerIndex = (leftTriggerIndex + 1) % leftTriggerSet.length;
+        leftTriggerType = leftTriggerSet[leftTriggerIndex];
+        updateTriggerUI();
+      }
+      if (e.code === 'KeyE') {
+        // 右トリガー切り替え時に表示中のトリガーを消す
+        if (rightBulletObj) { scene.remove(rightBulletObj); rightBulletObj = null; rightBulletReady = false; }
+        if (rightTriggerObj) { scene.remove(rightTriggerObj); rightTriggerObj = null; }
+        rightTriggerIndex = (rightTriggerIndex + 1) % rightTriggerSet.length;
+        rightTriggerType = rightTriggerSet[rightTriggerIndex];
+        updateTriggerUI();
+      }
+      // F:左特殊, G:右特殊（玉トリガー分割）
+      if (e.code === 'KeyF') {
+        if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
+          // 分割したら元に戻せない
+          if (!leftBulletSplit) {
+            leftBulletSplit = true;
+            if (leftBulletObj) {
+              scene.remove(leftBulletObj);
+              leftBulletObj = createTriggerModel(leftTriggerType, true);
+              scene.add(leftBulletObj);
+            }
+          }
+        } else if (leftTriggerType === "kogetsu") {
+          kogetsuActiveLeft = !kogetsuActiveLeft;
+          if (!kogetsuActiveLeft && leftTriggerObj) {
+            scene.remove(leftTriggerObj);
+            leftTriggerObj = null;
+          }
+        } else {
+          leftSpecialActive = !leftSpecialActive;
+        }
+      }
+      if (e.code === 'KeyG') {
+        if (["asteroid", "hound", "viper", "meteorora"].includes(rightTriggerType)) {
+          if (!rightBulletSplit) {
+            rightBulletSplit = true;
+            if (rightBulletObj) {
+              scene.remove(rightBulletObj);
+              rightBulletObj = createTriggerModel(rightTriggerType, true);
+              scene.add(rightBulletObj);
+            }
+          }
+        } else if (rightTriggerType === "kogetsu") {
+          kogetsuActiveRight = !kogetsuActiveRight;
+          if (!kogetsuActiveRight && rightTriggerObj) {
+            scene.remove(rightTriggerObj);
+            rightTriggerObj = null;
+          }
+        } else {
+          rightSpecialActive = !rightSpecialActive;
+        }
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') move.forward = false;
+      if (e.code === 'KeyS') move.backward = false;
+      if (e.code === 'KeyA') move.left = false;
+      if (e.code === 'KeyD') move.right = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = false;
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = false;
+    });
+
+    // --- プレイヤーモデル（TPS用） ---
+    let playerMesh = null;
+    function createPlayerMesh() {
+      // シンプルな人型（胴体＋頭＋手足）
+      const group = new THREE.Group();
+      // 胴体
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, 1.2, 0.4),
+        new THREE.MeshPhongMaterial({ color: 0x6699cc, shininess: 80 })
+      );
+      body.position.y = 1.0;
+      group.add(body);
+      // 頭
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 16, 16),
+        new THREE.MeshPhongMaterial({ color: 0xffe0b0, shininess: 60 })
+      );
+      head.position.y = 1.8;
+      group.add(head);
+      // 左腕
+      const leftArm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.7, 0.18),
+        new THREE.MeshPhongMaterial({ color: 0x6699cc, shininess: 80 })
+      );
+      leftArm.position.set(-0.45, 1.1, 0);
+      group.add(leftArm);
+      // 右腕
+      const rightArm = leftArm.clone();
+      rightArm.position.x = 0.45;
+      group.add(rightArm);
+      // 左足
+      const leftLeg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.7, 0.18),
+        new THREE.MeshPhongMaterial({ color: 0x333366, shininess: 40 })
+      );
+      leftLeg.position.set(-0.18, 0.35, 0);
+      group.add(leftLeg);
+      // 右足
+      const rightLeg = leftLeg.clone();
+      rightLeg.position.x = 0.18;
+      group.add(rightLeg);
+      return group;
+    }
+    playerMesh = createPlayerMesh();
+    scene.add(playerMesh);
+
+    // --- トリガー表示・手元処理（TPS用） ---
+    function updateTriggerHandModels() {
+      // 左手
+      if (leftTriggerObj) scene.remove(leftTriggerObj);
+      leftTriggerObj = createTriggerModel(leftTriggerType, leftBulletSplit);
+      playerMesh.add(leftTriggerObj);
+      leftTriggerObj.position.set(-0.5, 1.1, 0.3); // 左手の位置
+      leftTriggerObj.rotation.set(0, Math.PI/2, 0);
+
+      // 右手
+      if (rightTriggerObj) scene.remove(rightTriggerObj);
+      rightTriggerObj = createTriggerModel(rightTriggerType, rightBulletSplit);
+      playerMesh.add(rightTriggerObj);
+      rightTriggerObj.position.set(0.5, 1.1, 0.3); // 右手の位置
+      rightTriggerObj.rotation.set(0, -Math.PI/2, 0);
+    }
+
     // --- TPS視点カメラ ---
     function updateCameraTPS() {
       // TPS視点：プレイヤーの後ろ上から見下ろす
@@ -437,14 +581,21 @@
     function animate() {
       requestAnimationFrame(animate);
 
+      // 移動速度
       let speed = isRunning ? 0.22 : 0.13;
-      playerHeight = isCrouching ? crouchHeight : standHeight;
+      if (isCrouching) {
+        playerHeight = crouchHeight;
+      } else {
+        playerHeight = standHeight;
+      }
 
+      // 移動
       let direction = new THREE.Vector3();
-      if (move.forward) direction.z += 1;
-      if (move.backward) direction.z -= 1;
-      if (move.left) direction.x -= 1;
-      if (move.right) direction.x += 1;
+      // Wで前進, Sで後退（修正）
+      if (move.forward) direction.z += 1; // Wで前進
+      if (move.backward) direction.z -= 1; // Sで後退
+      if (move.left) direction.x -= 1;    // Aで左
+      if (move.right) direction.x += 1;   // Dで右
       direction.normalize();
       let moveVector = new THREE.Vector3();
       if (direction.length() > 0) {
@@ -481,6 +632,9 @@
       // プレイヤーモデルの位置・向き
       playerMesh.position.copy(playerPos);
       playerMesh.rotation.y = yaw;
+
+      // トリガー手元表示（TPS用）
+      updateTriggerHandModels();
 
       // TPS視点カメラ更新
       updateCameraTPS();
@@ -609,160 +763,6 @@
   </script>
 </body>
 </html>
-        // シールド：漫画風の六角形バリア（透明感＋エッジ＋縁取り）
-        const group = new THREE.Group();
-        const shield = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.5, 0.5, 0.08, 6),
-          new THREE.MeshPhongMaterial({
-            color: 0x99ccff,
-            shininess: 100,
-            transparent: true,
-            opacity: 0.55
-          })
-        );
-        shield.rotation.x = Math.PI / 2;
-        group.add(shield);
-        // 縁取り
-        const edge = new THREE.Mesh(
-          new THREE.TorusGeometry(0.5, 0.015, 8, 32),
-          new THREE.MeshPhongMaterial({ color: 0x66ccff, shininess: 80 })
-        );
-        edge.rotation.x = Math.PI / 2;
-        group.add(edge);
-        return group;
-      }
-      if (type === "kogetsu") {
-        // 弧月：湾曲した刀（銀色の刃＋黒い柄＋鍔）
-        const group = new THREE.Group();
-        // 刃（湾曲）
-        const bladeCurve = new THREE.TorusGeometry(0.38, 0.04, 16, 48, Math.PI * 0.7);
-        const bladeMat = new THREE.MeshPhongMaterial({
-          color: 0xe0e0e0,
-          shininess: 120
-        });
-        const blade = new THREE.Mesh(bladeCurve, bladeMat);
-        blade.rotation.z = Math.PI / 2;
-        blade.position.y = 0.35;
-        group.add(blade);
-        // 柄
-        const grip = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.06, 0.06, 0.22, 12),
-          new THREE.MeshPhongMaterial({ color: 0x222222, shininess: 40 })
-        );
-        grip.position.y = -0.25;
-        group.add(grip);
-        // 鍔
-        const tsuba = new THREE.Mesh(
-          new THREE.TorusGeometry(0.07, 0.012, 8, 24),
-          new THREE.MeshPhongMaterial({ color: 0x888888, shininess: 60 })
-        );
-        tsuba.position.y = 0.05;
-        group.add(tsuba);
-        return group;
-      }
-      if (type === "senku") {
-        // 千空：弧月＋大きな青いエフェクト（漫画風）
-        const group = new THREE.Group();
-        // 刃（湾曲）
-        const bladeCurve = new THREE.TorusGeometry(0.38, 0.04, 16, 48, Math.PI * 0.7);
-        const bladeMat = new THREE.MeshPhongMaterial({
-          color: 0xe0e0e0,
-          shininess: 120
-        });
-        const blade = new THREE.Mesh(bladeCurve, bladeMat);
-        blade.rotation.z = Math.PI / 2;
-        blade.position.y = 0.35;
-        group.add(blade);
-        // 柄
-        const grip = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.06, 0.06, 0.22, 12),
-          new THREE.MeshPhongMaterial({ color: 0x222222, shininess: 40 })
-        );
-        grip.position.y = -0.25;
-        group.add(grip);
-        // 鍔
-        const tsuba = new THREE.Mesh(
-          new THREE.TorusGeometry(0.07, 0.012, 8, 24),
-          new THREE.MeshPhongMaterial({ color: 0x888888, shininess: 60 })
-        );
-        tsuba.position.y = 0.05;
-        group.add(tsuba);
-        // 千空エフェクト
-        const effect = new THREE.Mesh(
-          new THREE.TorusGeometry(0.65, 0.025, 8, 48, Math.PI * 1.2),
-          new THREE.MeshPhongMaterial({
-            color: 0x3399ff,
-            shininess: 80,
-            transparent: true,
-            opacity: 0.5
-          })
-        );
-        effect.position.y = 0.45;
-        effect.rotation.z = Math.PI / 2;
-        group.add(effect);
-        return group;
-      }
-      // デフォルト
-      return new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 40 }));
-    }
-
-    // --- トリガーセット ---
-    const TRIGGERS = ["asteroid", "hound", "viper", "meteorora", "shield", "kogetsu", "senku"];
-    let leftTriggerSet = ["asteroid", "hound", "viper", "meteorora"];
-    let rightTriggerSet = ["shield", "kogetsu", "senku", "asteroid"];
-    let leftTriggerIndex = 0, rightTriggerIndex = 0;
-    let leftTriggerType = leftTriggerSet[leftTriggerIndex], rightTriggerType = rightTriggerSet[rightTriggerIndex];
-
-    // --- トリガーUI描画 ---
-    function updateTriggerUI() {
-      const leftUI = document.getElementById('leftTriggerUI');
-      const rightUI = document.getElementById('rightTriggerUI');
-      leftUI.innerHTML = '';
-      rightUI.innerHTML = '';
-      for (let i = 0; i < 4; i++) {
-        const slot = document.createElement('div');
-        slot.className = 'trigger-slot' + (i === leftTriggerIndex ? ' trigger-selected' : '');
-        slot.textContent = getTriggerName(leftTriggerSet[i]);
-        leftUI.appendChild(slot);
-      }
-      for (let i = 0; i < 4; i++) {
-        const slot = document.createElement('div');
-        slot.className = 'trigger-slot' + (i === rightTriggerIndex ? ' trigger-selected' : '');
-        slot.textContent = getTriggerName(rightTriggerSet[i]);
-        rightUI.appendChild(slot);
-      }
-    }
-    function getTriggerName(type) {
-      switch(type) {
-        case "asteroid": return "アステロイド";
-        case "hound": return "ハウンド";
-        case "viper": return "バイパー";
-        case "meteorora": return "メテオラ";
-        case "shield": return "シールド";
-        case "kogetsu": return "弧月";
-        case "senku": return "旋空弧月";
-        default: return type;
-      }
-    }
-    updateTriggerUI();
-
-    // --- 入力 ---
-    const move = { forward: false, backward: false, left: false, right: false };
-    let jumpRequested = false;
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyW') move.forward = true;
-      if (e.code === 'KeyS') move.backward = true;
-      if (e.code === 'KeyA') move.left = true;
-      if (e.code === 'KeyD') move.right = true;
-      if (e.code === 'Space') jumpRequested = true;
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
-      if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
-      if (e.code === 'KeyQ') {
-        // 左トリガー切り替え時に表示中のトリガーを消す
-        if (leftBulletObj) { scene.remove(leftBulletObj); leftBulletObj = null; leftBulletReady = false; }
-        if (leftTriggerObj) { scene.remove(leftTriggerObj); leftTriggerObj = null; }
-        leftTriggerIndex = (leftTriggerIndex + 1) % leftTriggerSet.length;
-        leftTriggerType = leftTriggerSet[leftTriggerIndex];
         updateTriggerUI();
       }
       if (e.code === 'KeyE') {
