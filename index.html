@@ -177,6 +177,24 @@
     // --- TPS視点用カメラオフセット ---
     const cameraOffset = new THREE.Vector3(0, 2.5, 7); // プレイヤーの背後・少し上
 
+    // --- マウス移動 ---
+    // TPS視点のため、マウス移動でプレイヤーの向きを変更（上下視点は無効化）
+    canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === canvas) {
+        document.addEventListener('mousemove', onMouseMove, false);
+      } else {
+        document.removeEventListener('mousemove', onMouseMove, false);
+      }
+    });
+    function onMouseMove(e) {
+      const sensitivity = 0.002;
+      yaw -= e.movementX * sensitivity;
+      // pitchは使わない（上下視点なし）
+      // pitch -= e.movementY * sensitivity;
+      // pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, pitch));
+    }
+
     // --- 玉トリガー分割制御 ---
     let leftBulletSplit = false, rightBulletSplit = false;
 
@@ -477,24 +495,6 @@
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = false;
     });
 
-    // --- マウス移動 ---
-    // TPS視点のため、マウス移動でプレイヤーの向きを変更
-    canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
-    document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === canvas) {
-        document.addEventListener('mousemove', onMouseMove, false);
-      } else {
-        document.removeEventListener('mousemove', onMouseMove, false);
-      }
-    });
-    function onMouseMove(e) {
-      const sensitivity = 0.002;
-      yaw -= e.movementX * sensitivity;
-      // TPSではpitchはカメラのみで上下に制限
-      pitch -= e.movementY * sensitivity;
-      pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, pitch));
-    }
-
     // --- ジャンプ ---
     let wantJump = false;
 
@@ -679,7 +679,7 @@
       playerModel.position.y += playerHeight / 2 - 1.9;
       playerModel.rotation.y = yaw;
 
-      // TPSカメラ位置計算
+      // TPSカメラ位置計算（キャラクターの背後・少し上）
       const camDir = new THREE.Vector3(0, 0, -1)
         .applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
       const camUp = new THREE.Vector3(0, 1, 0);
@@ -691,9 +691,9 @@
         .add(camDir.clone().multiplyScalar(cameraOffset.z))
         .add(camRight.clone().multiplyScalar(cameraOffset.x));
       camera.position.copy(camPos);
-      // カメラがプレイヤーを向く
+      // カメラがプレイヤーを向く（pitchは使わず、キャラクターの背中側からキャラクターを見る）
       camera.lookAt(playerPos.clone().add(camUp.clone().multiplyScalar(1.2)));
-      camera.rotation.x += pitch; // 上下視点
+      // camera.rotation.x += pitch; // pitchは使わない
 
       // トリガーの手元表示（TPSではプレイヤーの前方に表示）
       if (leftBulletObj) {
