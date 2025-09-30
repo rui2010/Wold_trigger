@@ -167,6 +167,16 @@
     let yaw = 0, pitch = 0;
     let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
 
+    // --- プレイヤーモデル追加 ---
+    const playerModel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 3.8, 1.2),
+      new THREE.MeshPhongMaterial({ color: 0x44aaff })
+    );
+    scene.add(playerModel);
+
+    // --- TPS視点用カメラオフセット ---
+    const cameraOffset = new THREE.Vector3(0, 2.5, 7); // プレイヤーの背後・少し上
+
     // --- 玉トリガー分割制御 ---
     let leftBulletSplit = false, rightBulletSplit = false;
 
@@ -467,7 +477,8 @@
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = false;
     });
 
-    // --- 視点 ---
+    // --- マウス移動 ---
+    // TPS視点のため、マウス移動でプレイヤーの向きを変更
     canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
     document.addEventListener('pointerlockchange', () => {
       if (document.pointerLockElement === canvas) {
@@ -479,8 +490,9 @@
     function onMouseMove(e) {
       const sensitivity = 0.002;
       yaw -= e.movementX * sensitivity;
+      // TPSではpitchはカメラのみで上下に制限
       pitch -= e.movementY * sensitivity;
-      pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
+      pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, pitch));
     }
 
     // --- ジャンプ ---
@@ -662,36 +674,48 @@
         isOnGround = false;
       }
 
-      // カメラ
-      camera.position.copy(playerPos);
-      camera.position.y += playerHeight - 1.8;
-      camera.rotation.order = "YXZ";
-      camera.rotation.y = yaw;
-      camera.rotation.x = pitch;
-      camera.rotation.z = 0;
+      // プレイヤーモデルの位置・向き更新
+      playerModel.position.copy(playerPos);
+      playerModel.position.y += playerHeight / 2 - 1.9;
+      playerModel.rotation.y = yaw;
 
-      // トリガーの手元表示（左は左側、右は右側）
-      // 玉トリガーは2回クリックまで表示
+      // TPSカメラ位置計算
+      const camDir = new THREE.Vector3(0, 0, -1)
+        .applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+      const camUp = new THREE.Vector3(0, 1, 0);
+      const camRight = new THREE.Vector3(1, 0, 0)
+        .applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+      // カメラオフセット（プレイヤーの背後・上）
+      let camPos = playerPos.clone()
+        .add(camUp.clone().multiplyScalar(cameraOffset.y))
+        .add(camDir.clone().multiplyScalar(cameraOffset.z))
+        .add(camRight.clone().multiplyScalar(cameraOffset.x));
+      camera.position.copy(camPos);
+      // カメラがプレイヤーを向く
+      camera.lookAt(playerPos.clone().add(camUp.clone().multiplyScalar(1.2)));
+      camera.rotation.x += pitch; // 上下視点
+
+      // トリガーの手元表示（TPSではプレイヤーの前方に表示）
       if (leftBulletObj) {
-        leftBulletObj.position.copy(camera.position);
-        leftBulletObj.position.add(new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation));
-        leftBulletObj.rotation.copy(camera.rotation);
+        leftBulletObj.position.copy(playerPos)
+          .add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+        leftBulletObj.rotation.y = yaw;
       }
       if (rightBulletObj) {
-        rightBulletObj.position.copy(camera.position);
-        rightBulletObj.position.add(new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation));
-        rightBulletObj.rotation.copy(camera.rotation);
+        rightBulletObj.position.copy(playerPos)
+          .add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+        rightBulletObj.rotation.y = yaw;
       }
       // 弧月・シールド
       if (leftTriggerObj) {
         if (leftTriggerType === "shield") {
-          leftTriggerObj.position.copy(camera.position);
-          leftTriggerObj.position.add(new THREE.Vector3(0, -0.2, -1.1).applyEuler(camera.rotation));
-          leftTriggerObj.rotation.copy(camera.rotation);
+          leftTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(0, 1.2, -1.1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          leftTriggerObj.rotation.y = yaw;
         } else {
-          leftTriggerObj.position.copy(camera.position);
-          leftTriggerObj.position.add(new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation));
-          leftTriggerObj.rotation.copy(camera.rotation);
+          leftTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          leftTriggerObj.rotation.y = yaw;
         }
         if (leftTriggerType === "senku" && leftSpecialActive) {
           leftTriggerObj.children.forEach(obj => {
@@ -705,14 +729,13 @@
       }
       if (rightTriggerObj) {
         if (rightTriggerType === "shield") {
-          // シールドは眼の前
-          rightTriggerObj.position.copy(camera.position);
-          rightTriggerObj.position.add(new THREE.Vector3(0, -0.2, -1.1).applyEuler(camera.rotation));
-          rightTriggerObj.rotation.copy(camera.rotation);
+          rightTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(0, 1.2, -1.1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          rightTriggerObj.rotation.y = yaw;
         } else {
-          rightTriggerObj.position.copy(camera.position);
-          rightTriggerObj.position.add(new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation));
-          rightTriggerObj.rotation.copy(camera.rotation);
+          rightTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          rightTriggerObj.rotation.y = yaw;
         }
         if (rightTriggerType === "senku" && rightSpecialActive) {
           rightTriggerObj.children.forEach(obj => {
