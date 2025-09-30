@@ -644,7 +644,7 @@
       // トリガー手元表示（TPS用）
       updateTriggerHandModels();
 
-      // TPS視点カメラのみを使用
+      // カメラの位置・向きはupdateCameraTPS()のみ
       updateCameraTPS();
 
       // トリガーの手元表示（左は左側、右は右側）
@@ -948,7 +948,10 @@
       playerMesh.position.copy(playerPos);
       playerMesh.rotation.y = yaw;
 
-      // TPS視点カメラ更新
+      // トリガー手元表示（TPS用）
+      updateTriggerHandModels();
+
+      // カメラの位置・向きはupdateCameraTPS()のみ
       updateCameraTPS();
 
       // トリガーの手元表示（左は左側、右は右側）
