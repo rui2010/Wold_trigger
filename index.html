@@ -69,10 +69,16 @@
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
     // --- ライト ---
-    const light = new THREE.DirectionalLight(0xffffff, 2.2);
-    light.position.set(20, 40, 20);
+    // 画面全体を明るくするためライトを強化・追加
+    const light = new THREE.DirectionalLight(0xffffff, 3.5);
+    light.position.set(30, 60, 30);
     scene.add(light);
-    const ambient = new THREE.AmbientLight(0xffffff, 1.5);
+    // 斜めからの補助ライト
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    fillLight.position.set(-30, 30, -30);
+    scene.add(fillLight);
+    // 全体を明るくする環境光
+    const ambient = new THREE.AmbientLight(0xffffff, 2.2);
     scene.add(ambient);
 
     // --- 市街地Aマップ ---
@@ -567,13 +573,16 @@
     // --- TPS視点カメラ ---
     function updateCameraTPS() {
       // TPS視点：プレイヤーの後ろ上から見下ろす
-      const camOffset = new THREE.Vector3(0, 3.5, 7.5); // 高さ・後ろ
-      const camPos = playerPos.clone().add(camOffset.applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+      const camOffset = new THREE.Vector3(0, 4.5, 10); // 高さ・後ろをさらに上げて見やすく
+      // プレイヤーの向きに合わせてカメラ位置を回転
+      const offsetRotated = camOffset.applyEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+      const camPos = playerPos.clone().add(offsetRotated);
       camera.position.copy(camPos);
       camera.lookAt(playerPos.x, playerPos.y + 1.2, playerPos.z);
       camera.rotation.order = "YXZ";
+      // カメラの上下視点はpitchで制御（TPSは制限あり）
       camera.rotation.y = yaw;
-      camera.rotation.x = pitch * 0.5; // TPSは上下視点を少し制限
+      camera.rotation.x = pitch * 0.7; // TPSは上下視点をやや広めに
       camera.rotation.z = 0;
     }
 
@@ -628,6 +637,14 @@
       } else {
         isOnGround = false;
       }
+
+      // カメラ
+      camera.position.copy(playerPos);
+      camera.position.y += playerHeight - 1.8;
+      camera.rotation.order = "YXZ";
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      camera.rotation.z = 0;
 
       // プレイヤーモデルの位置・向き
       playerMesh.position.copy(playerPos);
@@ -746,41 +763,24 @@
     animate();
 
     // --- 視点操作（TPS用） ---
+    // 視点移動のバグ修正：PointerLock取得時のみmousemoveを有効化
+    let pointerLocked = false;
     canvas.addEventListener('click', () => { canvas.requestPointerLock(); });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === canvas) {
-        document.addEventListener('mousemove', onMouseMove, false);
-      } else {
-        document.removeEventListener('mousemove', onMouseMove, false);
-      }
+      pointerLocked = (document.pointerLockElement === canvas);
     });
     function onMouseMove(e) {
-      const sensitivity = 0.002;
+      if (!pointerLocked) return;
+      const sensitivity = 0.003; // 少し感度アップ
       yaw -= e.movementX * sensitivity;
       pitch -= e.movementY * sensitivity;
-      pitch = Math.max(-Math.PI/4, Math.min(Math.PI/4, pitch)); // TPSは上下制限
+      // TPSは上下視点を広めに制限
+      pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, pitch));
     }
+    window.addEventListener('mousemove', onMouseMove);
   </script>
 </body>
 </html>
-        updateTriggerUI();
-      }
-      if (e.code === 'KeyE') {
-        // 右トリガー切り替え時に表示中のトリガーを消す
-        if (rightBulletObj) { scene.remove(rightBulletObj); rightBulletObj = null; rightBulletReady = false; }
-        if (rightTriggerObj) { scene.remove(rightTriggerObj); rightTriggerObj = null; }
-        rightTriggerIndex = (rightTriggerIndex + 1) % rightTriggerSet.length;
-        rightTriggerType = rightTriggerSet[rightTriggerIndex];
-        updateTriggerUI();
-      }
-      // F:左特殊, G:右特殊（玉トリガー分割）
-      if (e.code === 'KeyF') {
-        if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
-          // 分割したら元に戻せない
-          if (!leftBulletSplit) {
-            leftBulletSplit = true;
-            if (leftBulletObj) {
-              scene.remove(leftBulletObj);
               leftBulletObj = createTriggerModel(leftTriggerType, true);
               scene.add(leftBulletObj);
             }
