@@ -167,7 +167,7 @@
     let yaw = 0, pitch = 0;
     let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
 
-    // --- プレイヤーモデル追加（空閑遊真風） ---
+    // --- プレイヤーモデル追加（空閑遊真 B級玉狛戦闘服風） ---
     const yumaGroup = new THREE.Group();
     // 頭（白球）
     const head = new THREE.Mesh(
@@ -176,35 +176,81 @@
     );
     head.position.y = 2.7;
     yumaGroup.add(head);
-    // 胴体（黒箱）
+
+    // 髪（白い毛束風の円柱を数本追加）
+    for (let i = 0; i < 6; i++) {
+      const hair = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.05, 0.55, 8),
+        new THREE.MeshPhongMaterial({ color: 0xffffff })
+      );
+      hair.position.y = 3.1;
+      hair.position.x = Math.cos((i/6)*Math.PI*2) * 0.45;
+      hair.position.z = Math.sin((i/6)*Math.PI*2) * 0.45;
+      hair.rotation.x = Math.PI/2 + (Math.random()-0.5)*0.3;
+      hair.rotation.z = (Math.random()-0.5)*0.3;
+      yumaGroup.add(hair);
+    }
+
+    // 胴体（青箱＋白ライン）
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.9, 1.3, 0.6),
-      new THREE.MeshPhongMaterial({ color: 0x222222 })
+      new THREE.MeshPhongMaterial({ color: 0x2277cc })
     );
     body.position.y = 1.5;
     yumaGroup.add(body);
-    // 腕（左右、細い黒円柱）
-    const armL = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 1.1, 12),
-      new THREE.MeshPhongMaterial({ color: 0x222222 })
+    // 白ライン（前面縦ライン）
+    const line = new THREE.Mesh(
+      new THREE.BoxGeometry(0.13, 1.1, 0.62),
+      new THREE.MeshPhongMaterial({ color: 0xffffff })
     );
-    armL.position.set(-0.65, 1.7, 0);
-    armL.rotation.z = Math.PI / 8;
-    yumaGroup.add(armL);
-    const armR = armL.clone();
-    armR.position.x = 0.65;
-    armR.rotation.z = -Math.PI / 8;
-    yumaGroup.add(armR);
-    // 脚（左右、細い黒円柱）
-    const legL = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.16, 1.2, 12),
-      new THREE.MeshPhongMaterial({ color: 0x222222 })
-    );
-    legL.position.set(-0.28, 0.2, 0);
-    yumaGroup.add(legL);
-    const legR = legL.clone();
-    legR.position.x = 0.28;
-    yumaGroup.add(legR);
+    line.position.set(0, 1.5, 0.01);
+    yumaGroup.add(line);
+
+    // 腕（青＋白ライン）
+    function createArm(isLeft) {
+      const arm = new THREE.Group();
+      const main = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 1.1, 12),
+        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+      );
+      main.position.y = 0;
+      arm.add(main);
+      // 白ライン
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.9, 0.18),
+        new THREE.MeshPhongMaterial({ color: 0xffffff })
+      );
+      stripe.position.set(0, 0, 0.13);
+      arm.add(stripe);
+      arm.position.set(isLeft ? -0.65 : 0.65, 1.7, 0);
+      arm.rotation.z = isLeft ? Math.PI/8 : -Math.PI/8;
+      return arm;
+    }
+    yumaGroup.add(createArm(true));
+    yumaGroup.add(createArm(false));
+
+    // 脚（青＋白ライン）
+    function createLeg(isLeft) {
+      const leg = new THREE.Group();
+      const main = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.16, 1.2, 12),
+        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+      );
+      main.position.y = 0;
+      leg.add(main);
+      // 白ライン
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 1.0, 0.16),
+        new THREE.MeshPhongMaterial({ color: 0xffffff })
+      );
+      stripe.position.set(0, 0, 0.09);
+      leg.add(stripe);
+      leg.position.set(isLeft ? -0.28 : 0.28, 0.2, 0);
+      return leg;
+    }
+    yumaGroup.add(createLeg(true));
+    yumaGroup.add(createLeg(false));
+
     scene.add(yumaGroup);
 
     // --- TPS視点用カメラオフセット ---
