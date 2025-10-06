@@ -228,6 +228,25 @@
     // 顔（目・口：アニメ風にシンプルな配置）
     function createAnimeEye(x) {
       const eyeGroup = new THREE.Group();
+      // 白目
+      const eyeWhite = new THREE.Mesh(
+        new THREE.SphereGeometry(0.13, 24, 24),
+        new THREE.MeshPhongMaterial({ color: 0xffffff })
+      );
+      eyeWhite.position.set(x, 2.85, 0.62);
+      eyeGroup.add(eyeWhite);
+      // 黒目
+      const eyeBlack = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 24, 24),
+        new THREE.MeshPhongMaterial({ color: 0x222222 })
+      );
+      eyeBlack.position.set(x, 2.85, 0.7);
+      eyeGroup.add(eyeBlack);
+      // 赤い瞳孔
+      const eyeRed = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03, 16, 16),
+        new THREE.MeshPhongMaterial({ color: 0xff4444 })
+      );
       eyeRed.position.set(x, 2.85, 0.74);
       eyeGroup.add(eyeRed);
       return eyeGroup;
