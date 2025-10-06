@@ -167,65 +167,76 @@
     let yaw = 0, pitch = 0;
     let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
 
-    // --- プレイヤーモデル追加（より精巧な空閑遊真モデル） ---
+    // --- プレイヤーモデル追加（アニメ風・空閑遊真カラーリング重視のシンプルモデル） ---
     // 既存のyumaGroup生成部分を以下で置き換え
 
     const yumaGroup = new THREE.Group();
 
-    // --- 頭部 ---
-    // 頭
+    // 頭（白球）
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.7, 48, 48),
       new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        roughness: 0.35,
+        color: 0xf8f8f8,
+        roughness: 0.25,
         metalness: 0.1,
         clearcoat: 0.7,
-        clearcoatRoughness: 0.15
+        clearcoatRoughness: 0.1
       })
     );
     head.position.y = 2.7;
     yumaGroup.add(head);
 
-    // 顔（目・口を平面で表現）
-    // 目（白目＋黒目＋赤い瞳孔＋ハイライト）
-    function createEye(x) {
+    // 前髪（アニメ風に前方に大きめの毛束を配置）
+    for (let i = 0; i < 5; i++) {
+      const bang = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.04, 0.45, 16),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xf8f8f8,
+          roughness: 0.18,
+          metalness: 0.18,
+          clearcoat: 1,
+          clearcoatRoughness: 0.04
+        })
+      );
+      bang.position.y = 3.1 + (Math.random() - 0.5) * 0.04;
+      bang.position.x = (i - 2) * 0.13 + (Math.random() - 0.5) * 0.03;
+      bang.position.z = 0.7 + (Math.random() - 0.5) * 0.03;
+      bang.rotation.x = Math.PI / 2.1 + (Math.random() - 0.5) * 0.1;
+      yumaGroup.add(bang);
+    }
+    // サイド・後頭部の髪
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const hair = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.03, 0.38 + Math.random() * 0.08, 12),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xf8f8f8,
+          roughness: 0.18,
+          metalness: 0.18,
+          clearcoat: 1,
+          clearcoatRoughness: 0.04
+        })
+      );
+      hair.position.y = 3.05 + (Math.random() - 0.5) * 0.04;
+      hair.position.x = Math.cos(angle) * 0.45 + (Math.random() - 0.5) * 0.03;
+      hair.position.z = Math.sin(angle) * 0.45 + (Math.random() - 0.5) * 0.03;
+      hair.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.2;
+      hair.rotation.z = angle;
+      yumaGroup.add(hair);
+    }
+
+    // 顔（目・口：アニメ風にシンプルな配置）
+    function createAnimeEye(x) {
       const eyeGroup = new THREE.Group();
-      // 白目
-      const eyeWhite = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 24, 24),
-        new THREE.MeshPhongMaterial({ color: 0xffffff })
-      );
-      eyeWhite.position.set(x, 2.85, 0.62);
-      eyeGroup.add(eyeWhite);
-      // 黒目
-      const eyeBlack = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 24, 24),
-        new THREE.MeshPhongMaterial({ color: 0x222222 })
-      );
-      eyeBlack.position.set(x, 2.85, 0.7);
-      eyeGroup.add(eyeBlack);
-      // 赤い瞳孔
-      const eyeRed = new THREE.Mesh(
-        new THREE.SphereGeometry(0.032, 24, 24),
-        new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x660000, emissiveIntensity: 0.2 })
-      );
       eyeRed.position.set(x, 2.85, 0.74);
       eyeGroup.add(eyeRed);
-      // ハイライト
-      const eyeHL = new THREE.Mesh(
-        new THREE.SphereGeometry(0.018, 12, 12),
-        new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.7 })
-      );
-      eyeHL.position.set(x + 0.025, 2.87, 0.76);
-      eyeGroup.add(eyeHL);
       return eyeGroup;
     }
-    yumaGroup.add(createEye(0.22));
-    yumaGroup.add(createEye(-0.22));
+    yumaGroup.add(createAnimeEye(0.22));
+    yumaGroup.add(createAnimeEye(-0.22));
 
-    // 口（薄いピンクのカーブした円弧）
-    const mouthShape = new THREE.TorusGeometry(0.09, 0.012, 8, 32, Math.PI * 0.7);
+    // 口（アニメ風の細いピンクの円弧）
+    const mouthShape = new THREE.TorusGeometry(0.09, 0.01, 8, 32, Math.PI * 0.7);
     const mouth = new THREE.Mesh(
       mouthShape,
       new THREE.MeshPhongMaterial({ color: 0xffb0b0, shininess: 60 })
@@ -234,77 +245,13 @@
     mouth.rotation.x = Math.PI / 2.1;
     yumaGroup.add(mouth);
 
-    // --- 髪 ---
-    // 髪のベース（白、やや半透明、光沢あり）
-    function createHairStrand(radius, length, x, y, z, rx, ry, rz) {
-      return new THREE.Mesh(
-        new THREE.CylinderGeometry(radius * 0.7, radius, length, 12),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xf8f8f8,
-          roughness: 0.18,
-          metalness: 0.25,
-          clearcoat: 1,
-          clearcoatRoughness: 0.05,
-          transmission: 0.18,
-          transparent: true,
-          opacity: 0.93
-        })
-      ).setPosition(x, y, z).setRotationFromEuler(new THREE.Euler(rx, ry, rz));
-    }
-    // 頭頂部・後頭部・横・前髪
-    for (let i = 0; i < 18; i++) {
-      const angle = (i / 18) * Math.PI * 2;
-      const len = 0.45 + Math.random() * 0.13;
-      const strand = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.04, len, 12),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xf8f8f8,
-          roughness: 0.18,
-          metalness: 0.25,
-          clearcoat: 1,
-          clearcoatRoughness: 0.05,
-          transmission: 0.18,
-          transparent: true,
-          opacity: 0.93
-        })
-      );
-      strand.position.y = 3.1 + (Math.random() - 0.5) * 0.07;
-      strand.position.x = Math.cos(angle) * 0.48 + (Math.random() - 0.5) * 0.06;
-      strand.position.z = Math.sin(angle) * 0.48 + (Math.random() - 0.5) * 0.06;
-      strand.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
-      strand.rotation.z = angle + (Math.random() - 0.5) * 0.2;
-      yumaGroup.add(strand);
-    }
-    // 前髪（短めで前方に）
-    for (let i = 0; i < 6; i++) {
-      const bang = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.03, 0.28 + Math.random() * 0.07, 10),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xf8f8f8,
-          roughness: 0.13,
-          metalness: 0.18,
-          clearcoat: 1,
-          clearcoatRoughness: 0.03,
-          transmission: 0.18,
-          transparent: true,
-          opacity: 0.93
-        })
-      );
-      bang.position.y = 3.03 + (Math.random() - 0.5) * 0.03;
-      bang.position.x = (i - 2.5) * 0.13 + (Math.random() - 0.5) * 0.03;
-      bang.position.z = 0.68 + (Math.random() - 0.5) * 0.03;
-      bang.rotation.x = Math.PI / 2.2 + (Math.random() - 0.5) * 0.2;
-      yumaGroup.add(bang);
-    }
-
-    // --- 胴体 ---
-    // 青＋白ライン＋肩の白パーツ
+    // 胴体（青＋白ライン＋肩の白パーツ、アニメのB級玉狛服カラー）
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.9, 1.3, 0.6),
       new THREE.MeshPhysicalMaterial({
         color: 0x2277cc,
-        roughness: 0.22,
-        metalness: 0.18,
+        roughness: 0.18,
+        metalness: 0.15,
         clearcoat: 0.7
       })
     );
@@ -313,7 +260,7 @@
     // 白ライン（前面縦ライン）
     const line = new THREE.Mesh(
       new THREE.BoxGeometry(0.13, 1.1, 0.62),
-      new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
+      new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, metalness: 0.03 })
     );
     line.position.set(0, 1.5, 0.01);
     yumaGroup.add(line);
@@ -321,7 +268,7 @@
     for (let i = -1; i <= 1; i += 2) {
       const shoulder = new THREE.Mesh(
         new THREE.SphereGeometry(0.22, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, metalness: 0.03 })
       );
       shoulder.position.set(0.62 * i, 2.1, 0);
       shoulder.rotation.x = -Math.PI / 2;
@@ -329,91 +276,67 @@
     }
 
     // --- 腕 ---
-    function createArm(isLeft) {
+    function createAnimeArm(isLeft) {
       const arm = new THREE.Group();
       // 上腕
       const upper = new THREE.Mesh(
         new THREE.CylinderGeometry(0.14, 0.16, 0.6, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.18, metalness: 0.15 })
       );
       upper.position.y = 0.3;
       arm.add(upper);
       // 白ライン
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(0.05, 0.5, 0.13),
-        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, metalness: 0.03 })
       );
       stripe.position.set(0, 0.3, 0.11);
       arm.add(stripe);
       // 前腕
       const lower = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.13, 0.5, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.18, metalness: 0.15 })
       );
       lower.position.y = -0.25;
       lower.position.z = 0.01;
       lower.rotation.x = Math.PI / 16 * (isLeft ? 1 : -1);
       arm.add(lower);
-      // 手（肌色球＋指）
+      // 手（肌色球）
       const hand = new THREE.Mesh(
         new THREE.SphereGeometry(0.13, 16, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
+        new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.25, metalness: 0.08 })
       );
       hand.position.y = -0.55;
       hand.position.z = 0.01;
       arm.add(hand);
-      // 指（4本、細い円柱）
-      for (let f = 0; f < 4; f++) {
-        const finger = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.018, 0.018, 0.18, 8),
-          new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
-        );
-        finger.position.set(
-          (f - 1.5) * 0.035,
-          -0.65,
-          0.08 + (f === 0 ? -0.02 : f === 3 ? 0.02 : 0)
-        );
-        finger.rotation.x = Math.PI / 2.2;
-        arm.add(finger);
-      }
-      // 親指
-      const thumb = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.019, 0.019, 0.13, 8),
-        new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
-      );
-      thumb.position.set(isLeft ? -0.09 : 0.09, -0.61, 0.03);
-      thumb.rotation.z = isLeft ? Math.PI / 4 : -Math.PI / 4;
-      thumb.rotation.x = Math.PI / 2.5;
-      arm.add(thumb);
-
       arm.position.set(isLeft ? -0.65 : 0.65, 1.7, 0);
       arm.rotation.z = isLeft ? Math.PI / 8 : -Math.PI / 8;
       return arm;
     }
-    yumaGroup.add(createArm(true));
-    yumaGroup.add(createArm(false));
+    yumaGroup.add(createAnimeArm(true));
+    yumaGroup.add(createAnimeArm(false));
 
     // --- 脚 ---
-    function createLeg(isLeft) {
+    function createAnimeLeg(isLeft) {
       const leg = new THREE.Group();
       // 太もも
       const thigh = new THREE.Mesh(
         new THREE.CylinderGeometry(0.13, 0.15, 0.6, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.18, metalness: 0.15 })
       );
       thigh.position.y = 0.3;
       leg.add(thigh);
       // 白ライン
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(0.04, 0.5, 0.13),
-        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.08, metalness: 0.03 })
       );
       stripe.position.set(0, 0.3, 0.09);
       leg.add(stripe);
       // すね
       const shin = new THREE.Mesh(
         new THREE.CylinderGeometry(0.11, 0.12, 0.6, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.18, metalness: 0.15 })
       );
       shin.position.y = -0.25;
       shin.position.z = 0.01;
@@ -422,7 +345,7 @@
       // 靴（黒球＋つま先）
       const shoe = new THREE.Mesh(
         new THREE.SphereGeometry(0.13, 16, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.25, metalness: 0.3 })
+        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.18, metalness: 0.18 })
       );
       shoe.position.y = -0.55;
       shoe.position.z = 0.01;
@@ -430,7 +353,7 @@
       // つま先（黒い半球）
       const toe = new THREE.Mesh(
         new THREE.SphereGeometry(0.09, 12, 12, 0, Math.PI),
-        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.25, metalness: 0.3 })
+        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.18, metalness: 0.18 })
       );
       toe.position.y = -0.62;
       toe.position.z = 0.11;
@@ -440,8 +363,8 @@
       leg.position.set(isLeft ? -0.28 : 0.28, 0.2, 0);
       return leg;
     }
-    yumaGroup.add(createLeg(true));
-    yumaGroup.add(createLeg(false));
+    yumaGroup.add(createAnimeLeg(true));
+    yumaGroup.add(createAnimeLeg(false));
 
     scene.add(yumaGroup);
 
@@ -1012,6 +935,64 @@
           });
         } else if (rightTriggerType === "senku") {
           rightTriggerObj.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
+          });
+        }
+      }
+
+      // 玉トリガー弾丸の移動・消去
+      for (let i = 0; i < bullets.length; i++) {
+        const bullet = bullets[i];
+        if (!bullet.alive) continue;
+        bullet.mesh.position.add(bullet.velocity);
+        // メテオラ爆発判定
+        if (bullet.type === "meteorora") {
+          // 地面に着弾したら爆発
+          if (bullet.mesh.position.y < 0.5) {
+            // 爆発エフェクト生成
+            const explosion = new THREE.Mesh(
+              new THREE.SphereGeometry(2.2, 24, 24),
+              new THREE.MeshPhysicalMaterial({
+                color: 0xffee33,
+                emissive: 0xffee33,
+                emissiveIntensity: 2.5,
+                transparent: true,
+                opacity: 0.7,
+                roughness: 0.25,
+                metalness: 0.2
+              })
+            );
+            explosion.position.copy(bullet.mesh.position);
+            scene.add(explosion);
+            explosions.push({ mesh: explosion, time: 0 });
+            scene.remove(bullet.mesh);
+            bullet.alive = false;
+            continue;
+          }
+        }
+        // 地面より下 or 遠くに行ったら消す
+        if (bullet.mesh.position.y < 0.5 ||
+            bullet.mesh.position.distanceTo(playerPos) > 120) {
+          scene.remove(bullet.mesh);
+          bullet.alive = false;
+        }
+      }
+
+      // メテオラ爆発エフェクトの消去（0.5秒で消える）
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].time += 1 / 60;
+        if (explosions[i].time > 0.5) {
+          scene.remove(explosions[i].mesh);
+          explosions.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
             if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
           });
         }
