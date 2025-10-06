@@ -167,180 +167,276 @@
     let yaw = 0, pitch = 0;
     let standHeight = 3.8, crouchHeight = 2.0, playerHeight = standHeight;
 
-    // --- プレイヤーモデル追加（よりアニメの空閑遊真らしいモデル・色分け・顔パーツ追加） ---
+    // --- プレイヤーモデル追加（より精巧な空閑遊真モデル） ---
+    // 既存のyumaGroup生成部分を以下で置き換え
+
     const yumaGroup = new THREE.Group();
 
-    // 頭（白球）
+    // --- 頭部 ---
+    // 頭
     const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.7, 32, 32),
-      new THREE.MeshPhongMaterial({ color: 0xffffff })
+      new THREE.SphereGeometry(0.7, 48, 48),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        roughness: 0.35,
+        metalness: 0.1,
+        clearcoat: 0.7,
+        clearcoatRoughness: 0.15
+      })
     );
     head.position.y = 2.7;
     yumaGroup.add(head);
 
-    // 顔（目・口：テクスチャ風に平面で追加）
-    const face = new THREE.Group();
-    // 目（黒目＋赤い瞳孔）
-    for (let i = -1; i <= 1; i += 2) {
+    // 顔（目・口を平面で表現）
+    // 目（白目＋黒目＋赤い瞳孔＋ハイライト）
+    function createEye(x) {
+      const eyeGroup = new THREE.Group();
+      // 白目
       const eyeWhite = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 16, 16),
+        new THREE.SphereGeometry(0.13, 24, 24),
         new THREE.MeshPhongMaterial({ color: 0xffffff })
       );
-      eyeWhite.position.set(0.22 * i, 2.85, 0.62);
-      face.add(eyeWhite);
-
+      eyeWhite.position.set(x, 2.85, 0.62);
+      eyeGroup.add(eyeWhite);
+      // 黒目
       const eyeBlack = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 16, 16),
+        new THREE.SphereGeometry(0.07, 24, 24),
         new THREE.MeshPhongMaterial({ color: 0x222222 })
       );
-      eyeBlack.position.set(0.22 * i, 2.85, 0.7);
-      face.add(eyeBlack);
-
+      eyeBlack.position.set(x, 2.85, 0.7);
+      eyeGroup.add(eyeBlack);
+      // 赤い瞳孔
       const eyeRed = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03, 16, 16),
-        new THREE.MeshPhongMaterial({ color: 0xff4444 })
+        new THREE.SphereGeometry(0.032, 24, 24),
+        new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x660000, emissiveIntensity: 0.2 })
       );
-      eyeRed.position.set(0.22 * i, 2.85, 0.74);
-      face.add(eyeRed);
+      eyeRed.position.set(x, 2.85, 0.74);
+      eyeGroup.add(eyeRed);
+      // ハイライト
+      const eyeHL = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 12, 12),
+        new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.7 })
+      );
+      eyeHL.position.set(x + 0.025, 2.87, 0.76);
+      eyeGroup.add(eyeHL);
+      return eyeGroup;
     }
-    // 口（細い黒円柱）
+    yumaGroup.add(createEye(0.22));
+    yumaGroup.add(createEye(-0.22));
+
+    // 口（薄いピンクのカーブした円弧）
+    const mouthShape = new THREE.TorusGeometry(0.09, 0.012, 8, 32, Math.PI * 0.7);
     const mouth = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8),
-      new THREE.MeshPhongMaterial({ color: 0x222222 })
+      mouthShape,
+      new THREE.MeshPhongMaterial({ color: 0xffb0b0, shininess: 60 })
     );
-    mouth.position.set(0, 2.68, 0.73);
-    mouth.rotation.x = Math.PI / 2;
-    face.add(mouth);
+    mouth.position.set(0, 2.67, 0.73);
+    mouth.rotation.x = Math.PI / 2.1;
+    yumaGroup.add(mouth);
 
-    yumaGroup.add(face);
-
-    // 髪（白い毛束を増やし、前髪・後頭部・横髪を立体的に配置）
-    for (let i = 0; i < 12; i++) {
-      const hair = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.04, 0.6 + Math.random()*0.1, 8),
-        new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 })
-      );
-      const angle = (i / 12) * Math.PI * 2;
-      hair.position.y = 3.1 + (Math.random()-0.5)*0.06;
-      hair.position.x = Math.cos(angle) * 0.48 + (Math.random()-0.5)*0.05;
-      hair.position.z = Math.sin(angle) * 0.48 + (Math.random()-0.5)*0.05;
-      hair.rotation.x = Math.PI/2 + (Math.random()-0.5)*0.4;
-      hair.rotation.z = angle + (Math.random()-0.5)*0.2;
-      yumaGroup.add(hair);
+    // --- 髪 ---
+    // 髪のベース（白、やや半透明、光沢あり）
+    function createHairStrand(radius, length, x, y, z, rx, ry, rz) {
+      return new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.7, radius, length, 12),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xf8f8f8,
+          roughness: 0.18,
+          metalness: 0.25,
+          clearcoat: 1,
+          clearcoatRoughness: 0.05,
+          transmission: 0.18,
+          transparent: true,
+          opacity: 0.93
+        })
+      ).setPosition(x, y, z).setRotationFromEuler(new THREE.Euler(rx, ry, rz));
     }
-    // 前髪（短めの毛束を前方に追加）
-    for (let i = 0; i < 4; i++) {
-      const bang = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.03, 0.38, 8),
-        new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 })
+    // 頭頂部・後頭部・横・前髪
+    for (let i = 0; i < 18; i++) {
+      const angle = (i / 18) * Math.PI * 2;
+      const len = 0.45 + Math.random() * 0.13;
+      const strand = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.04, len, 12),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xf8f8f8,
+          roughness: 0.18,
+          metalness: 0.25,
+          clearcoat: 1,
+          clearcoatRoughness: 0.05,
+          transmission: 0.18,
+          transparent: true,
+          opacity: 0.93
+        })
       );
-      bang.position.y = 3.05 + (Math.random()-0.5)*0.03;
-      bang.position.x = (i-1.5)*0.18 + (Math.random()-0.5)*0.03;
-      bang.position.z = 0.68 + (Math.random()-0.5)*0.03;
-      bang.rotation.x = Math.PI/2.2 + (Math.random()-0.5)*0.2;
+      strand.position.y = 3.1 + (Math.random() - 0.5) * 0.07;
+      strand.position.x = Math.cos(angle) * 0.48 + (Math.random() - 0.5) * 0.06;
+      strand.position.z = Math.sin(angle) * 0.48 + (Math.random() - 0.5) * 0.06;
+      strand.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+      strand.rotation.z = angle + (Math.random() - 0.5) * 0.2;
+      yumaGroup.add(strand);
+    }
+    // 前髪（短めで前方に）
+    for (let i = 0; i < 6; i++) {
+      const bang = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.03, 0.28 + Math.random() * 0.07, 10),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xf8f8f8,
+          roughness: 0.13,
+          metalness: 0.18,
+          clearcoat: 1,
+          clearcoatRoughness: 0.03,
+          transmission: 0.18,
+          transparent: true,
+          opacity: 0.93
+        })
+      );
+      bang.position.y = 3.03 + (Math.random() - 0.5) * 0.03;
+      bang.position.x = (i - 2.5) * 0.13 + (Math.random() - 0.5) * 0.03;
+      bang.position.z = 0.68 + (Math.random() - 0.5) * 0.03;
+      bang.rotation.x = Math.PI / 2.2 + (Math.random() - 0.5) * 0.2;
       yumaGroup.add(bang);
     }
 
-    // 胴体（青＋白ライン＋肩の白パーツ）
+    // --- 胴体 ---
+    // 青＋白ライン＋肩の白パーツ
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.9, 1.3, 0.6),
-      new THREE.MeshPhongMaterial({ color: 0x2277cc })
+      new THREE.MeshPhysicalMaterial({
+        color: 0x2277cc,
+        roughness: 0.22,
+        metalness: 0.18,
+        clearcoat: 0.7
+      })
     );
     body.position.y = 1.5;
     yumaGroup.add(body);
     // 白ライン（前面縦ライン）
     const line = new THREE.Mesh(
       new THREE.BoxGeometry(0.13, 1.1, 0.62),
-      new THREE.MeshPhongMaterial({ color: 0xffffff })
+      new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
     );
     line.position.set(0, 1.5, 0.01);
     yumaGroup.add(line);
     // 肩（白い半球パーツ）
     for (let i = -1; i <= 1; i += 2) {
       const shoulder = new THREE.Mesh(
-        new THREE.SphereGeometry(0.22, 16, 16, 0, Math.PI*2, 0, Math.PI/2),
-        new THREE.MeshPhongMaterial({ color: 0xffffff })
+        new THREE.SphereGeometry(0.22, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
       );
       shoulder.position.set(0.62 * i, 2.1, 0);
-      shoulder.rotation.x = -Math.PI/2;
+      shoulder.rotation.x = -Math.PI / 2;
       yumaGroup.add(shoulder);
     }
 
-    // 腕（青＋白ライン＋手先を肌色に）
+    // --- 腕 ---
     function createArm(isLeft) {
       const arm = new THREE.Group();
       // 上腕
       const upper = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.16, 0.6, 12),
-        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+        new THREE.CylinderGeometry(0.14, 0.16, 0.6, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
       );
       upper.position.y = 0.3;
       arm.add(upper);
       // 白ライン
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(0.05, 0.5, 0.13),
-        new THREE.MeshPhongMaterial({ color: 0xffffff })
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
       );
       stripe.position.set(0, 0.3, 0.11);
       arm.add(stripe);
       // 前腕
       const lower = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12, 0.13, 0.5, 12),
-        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+        new THREE.CylinderGeometry(0.12, 0.13, 0.5, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
       );
       lower.position.y = -0.25;
       lower.position.z = 0.01;
-      lower.rotation.x = Math.PI/16 * (isLeft ? 1 : -1);
+      lower.rotation.x = Math.PI / 16 * (isLeft ? 1 : -1);
       arm.add(lower);
-      // 手（肌色球）
+      // 手（肌色球＋指）
       const hand = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 12, 12),
-        new THREE.MeshPhongMaterial({ color: 0xffe0c0 })
+        new THREE.SphereGeometry(0.13, 16, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
       );
       hand.position.y = -0.55;
       hand.position.z = 0.01;
       arm.add(hand);
+      // 指（4本、細い円柱）
+      for (let f = 0; f < 4; f++) {
+        const finger = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.018, 0.18, 8),
+          new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
+        );
+        finger.position.set(
+          (f - 1.5) * 0.035,
+          -0.65,
+          0.08 + (f === 0 ? -0.02 : f === 3 ? 0.02 : 0)
+        );
+        finger.rotation.x = Math.PI / 2.2;
+        arm.add(finger);
+      }
+      // 親指
+      const thumb = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.019, 0.019, 0.13, 8),
+        new THREE.MeshPhysicalMaterial({ color: 0xffe0c0, roughness: 0.35, metalness: 0.1 })
+      );
+      thumb.position.set(isLeft ? -0.09 : 0.09, -0.61, 0.03);
+      thumb.rotation.z = isLeft ? Math.PI / 4 : -Math.PI / 4;
+      thumb.rotation.x = Math.PI / 2.5;
+      arm.add(thumb);
+
       arm.position.set(isLeft ? -0.65 : 0.65, 1.7, 0);
-      arm.rotation.z = isLeft ? Math.PI/8 : -Math.PI/8;
+      arm.rotation.z = isLeft ? Math.PI / 8 : -Math.PI / 8;
       return arm;
     }
     yumaGroup.add(createArm(true));
     yumaGroup.add(createArm(false));
 
-    // 脚（青＋白ライン＋靴を黒に）
+    // --- 脚 ---
     function createLeg(isLeft) {
       const leg = new THREE.Group();
       // 太もも
       const thigh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.13, 0.15, 0.6, 12),
-        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+        new THREE.CylinderGeometry(0.13, 0.15, 0.6, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
       );
       thigh.position.y = 0.3;
       leg.add(thigh);
       // 白ライン
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(0.04, 0.5, 0.13),
-        new THREE.MeshPhongMaterial({ color: 0xffffff })
+        new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.05 })
       );
       stripe.position.set(0, 0.3, 0.09);
       leg.add(stripe);
       // すね
       const shin = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.11, 0.12, 0.6, 12),
-        new THREE.MeshPhongMaterial({ color: 0x2277cc })
+        new THREE.CylinderGeometry(0.11, 0.12, 0.6, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x2277cc, roughness: 0.22, metalness: 0.18 })
       );
       shin.position.y = -0.25;
       shin.position.z = 0.01;
-      shin.rotation.x = Math.PI/32 * (isLeft ? 1 : -1);
+      shin.rotation.x = Math.PI / 32 * (isLeft ? 1 : -1);
       leg.add(shin);
-      // 靴（黒球）
+      // 靴（黒球＋つま先）
       const shoe = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 12, 12),
-        new THREE.MeshPhongMaterial({ color: 0x222222 })
+        new THREE.SphereGeometry(0.13, 16, 16),
+        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.25, metalness: 0.3 })
       );
       shoe.position.y = -0.55;
       shoe.position.z = 0.01;
       leg.add(shoe);
+      // つま先（黒い半球）
+      const toe = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 12, 12, 0, Math.PI),
+        new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.25, metalness: 0.3 })
+      );
+      toe.position.y = -0.62;
+      toe.position.z = 0.11;
+      toe.rotation.x = Math.PI / 2;
+      leg.add(toe);
+
       leg.position.set(isLeft ? -0.28 : 0.28, 0.2, 0);
       return leg;
     }
