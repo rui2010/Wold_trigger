@@ -744,16 +744,26 @@
       if (!obj) return;
       // 発射方向
       const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, "YXZ")).normalize();
-      // 発射位置（手元）
-      let offset = hand === "left"
-        ? new THREE.Vector3(-0.8, -1.2, -1.5).applyEuler(camera.rotation)
-        : new THREE.Vector3(0.8, -1.2, -1.5).applyEuler(camera.rotation);
+
+      // --- アステロイドのみキャラクター位置から発射 ---
+      let basePos;
+      if (triggerType === "asteroid") {
+        // キャラクターの手元位置（左手/右手）
+        basePos = hand === "left"
+          ? yumaGroup.position.clone().add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")))
+          : yumaGroup.position.clone().add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+      } else {
+        // それ以外はカメラ位置
+        basePos = camera.position.clone();
+      }
+
+      let offset = new THREE.Vector3(0, 0, 0);
       // 分割時は8個発射（Box+Edgeが交互なので偶数indexのみBox, 0,2,4,6,8,10,12,14）
       if (split && obj.children.length >= 16) {
         for (let i = 0; i < obj.children.length; i += 2) {
           const mesh = obj.children[i].clone();
           scene.add(mesh);
-          mesh.position.copy(camera.position).add(offset).add(obj.children[i].position);
+          mesh.position.copy(basePos).add(offset).add(obj.children[i].position);
           mesh.rotation.copy(camera.rotation);
           // 方向を少しずつずらす（分割玉は中心からの方向ベクトルを加算）
           const spread = obj.children[i].position.clone().multiplyScalar(0.7);
@@ -766,10 +776,9 @@
             split: true
           });
         }
-        // 分割玉は表示用のobjは消す
         scene.remove(obj);
       } else {
-        obj.position.copy(camera.position).add(offset);
+        obj.position.copy(basePos).add(offset);
         obj.rotation.copy(camera.rotation);
         let speed = 0.7;
         bullets.push({
@@ -952,15 +961,6 @@
   </script>
 </body>
 </html>
-        } else if (rightTriggerType === "senku") {
-          rightTriggerObj.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
-          });
-        }
-      }
-
-      // 玉トリガー弾丸の移動・消去
-      for (let i = 0; i < bullets.length; i++) {
         const bullet = bullets[i];
         if (!bullet.alive) continue;
         bullet.mesh.position.add(bullet.velocity);
