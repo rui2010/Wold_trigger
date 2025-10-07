@@ -186,73 +186,7 @@
     head.position.y = 2.7;
     yumaGroup.add(head);
 
-    // 前髪（アニメ風に前方に大きめの毛束を配置）
-    for (let i = 0; i < 5; i++) {
-      const bang = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.09, 0.04, 0.45, 16),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xf8f8f8,
-          roughness: 0.18,
-          metalness: 0.18,
-          clearcoat: 1,
-          clearcoatRoughness: 0.04
-        })
-      );
-      bang.position.y = 3.1 + (Math.random() - 0.5) * 0.04;
-      bang.position.x = (i - 2) * 0.13 + (Math.random() - 0.5) * 0.03;
-      bang.position.z = 0.7 + (Math.random() - 0.5) * 0.03;
-      bang.rotation.x = Math.PI / 2.1 + (Math.random() - 0.5) * 0.1;
-      yumaGroup.add(bang);
-    }
-    // サイド・後頭部の髪
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2;
-      const hair = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.03, 0.38 + Math.random() * 0.08, 12),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xf8f8f8,
-          roughness: 0.18,
-          metalness: 0.18,
-          clearcoat: 1,
-          clearcoatRoughness: 0.04
-        })
-      );
-      hair.position.y = 3.05 + (Math.random() - 0.5) * 0.04;
-      hair.position.x = Math.cos(angle) * 0.45 + (Math.random() - 0.5) * 0.03;
-      hair.position.z = Math.sin(angle) * 0.45 + (Math.random() - 0.5) * 0.03;
-      hair.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.2;
-      hair.rotation.z = angle;
-      yumaGroup.add(hair);
-    }
-
-    // 顔（目・口：アニメ風にシンプルな配置）
-    function createAnimeEye(x) {
-      const eyeGroup = new THREE.Group();
-      // 白目
-      const eyeWhite = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 24, 24),
-        new THREE.MeshPhongMaterial({ color: 0xffffff })
-      );
-      eyeWhite.position.set(x, 2.85, 0.62);
-      eyeGroup.add(eyeWhite);
-      // 黒目
-      const eyeBlack = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 24, 24),
-        new THREE.MeshPhongMaterial({ color: 0x222222 })
-      );
-      eyeBlack.position.set(x, 2.85, 0.7);
-      eyeGroup.add(eyeBlack);
-      // 赤い瞳孔
-      const eyeRed = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03, 16, 16),
-        new THREE.MeshPhongMaterial({ color: 0xff4444 })
-      );
-      eyeRed.position.set(x, 2.85, 0.74);
-      eyeGroup.add(eyeRed);
-      return eyeGroup;
-    }
-    yumaGroup.add(createAnimeEye(0.22));
-    yumaGroup.add(createAnimeEye(-0.22));
+    // 目と髪は削除
 
     // 口（アニメ風の細いピンクの円弧）
     const mouthShape = new THREE.TorusGeometry(0.09, 0.01, 8, 32, Math.PI * 0.7);
@@ -595,6 +529,7 @@
     }
 
     // --- トリガーセット ---
+    // 旋空弧月→旋空に名称変更
     const TRIGGERS = ["asteroid", "hound", "viper", "meteorora", "shield", "kogetsu", "senku"];
     let leftTriggerSet = ["asteroid", "hound", "viper", "meteorora"];
     let rightTriggerSet = ["shield", "kogetsu", "senku", "asteroid"];
@@ -628,7 +563,7 @@
         case "meteorora": return "メテオラ";
         case "shield": return "シールド";
         case "kogetsu": return "弧月";
-        case "senku": return "旋空弧月";
+        case "senku": return "旋空";
         default: return type;
       }
     }
@@ -642,7 +577,7 @@
       if (e.code === 'KeyS') move.backward = true;
       if (e.code === 'KeyA') move.left = true;
       if (e.code === 'KeyD') move.right = true;
-      if (e.code === 'Space') jumpRequested = true;
+      if (e.code === 'Space') jumpRequested = true; // スペースでジャンプ要求
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isCrouching = true;
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') isRunning = true;
       if (e.code === 'KeyQ') {
@@ -661,23 +596,29 @@
         rightTriggerType = rightTriggerSet[rightTriggerIndex];
         updateTriggerUI();
       }
-      // F:左特殊, G:右特殊（弧月起動）
+      // F:左特殊, G:右特殊（弧月→旋空切替）
       if (e.code === 'KeyF') {
         if (["asteroid", "hound", "viper", "meteorora"].includes(leftTriggerType)) {
           leftBulletSplit = !leftBulletSplit;
-          // 表示中なら分割状態を切り替え
           if (leftBulletObj) {
             scene.remove(leftBulletObj);
             leftBulletObj = createTriggerModel(leftTriggerType, leftBulletSplit);
             scene.add(leftBulletObj);
           }
         } else if (leftTriggerType === "kogetsu") {
-          kogetsuActiveLeft = !kogetsuActiveLeft;
-          if (!kogetsuActiveLeft && leftTriggerObj) {
-            scene.remove(leftTriggerObj);
-            leftTriggerObj = null;
-          }
-        } else {
+          // 弧月特殊で旋空発動
+          if (leftTriggerObj) scene.remove(leftTriggerObj);
+          leftTriggerObj = createTriggerModel("senku");
+          scene.add(leftTriggerObj);
+          senkuActiveLeft = true;
+          setTimeout(() => {
+            if (leftTriggerObj) {
+              scene.remove(leftTriggerObj);
+              leftTriggerObj = null;
+            }
+            senkuActiveLeft = false;
+          }, 700); // 0.7秒だけ旋空表示
+        } else if (leftTriggerType === "senku") {
           leftSpecialActive = !leftSpecialActive;
         }
       }
@@ -690,12 +631,19 @@
             scene.add(rightBulletObj);
           }
         } else if (rightTriggerType === "kogetsu") {
-          kogetsuActiveRight = !kogetsuActiveRight;
-          if (!kogetsuActiveRight && rightTriggerObj) {
-            scene.remove(rightTriggerObj);
-            rightTriggerObj = null;
-          }
-        } else {
+          // 弧月特殊で旋空発動
+          if (rightTriggerObj) scene.remove(rightTriggerObj);
+          rightTriggerObj = createTriggerModel("senku");
+          scene.add(rightTriggerObj);
+          senkuActiveRight = true;
+          setTimeout(() => {
+            if (rightTriggerObj) {
+              scene.remove(rightTriggerObj);
+              rightTriggerObj = null;
+            }
+            senkuActiveRight = false;
+          }, 700);
+        } else if (rightTriggerType === "senku") {
           rightSpecialActive = !rightSpecialActive;
         }
       }
@@ -722,9 +670,11 @@
     // --- トリガー発動 ---
     let leftTriggerObj = null, rightTriggerObj = null;
     let leftSpecialActive = false, rightSpecialActive = false;
-    // --- 弧月攻撃制御 ---
+    // --- 弧月/旋空制御 ---
     let kogetsuActiveLeft = false, kogetsuActiveRight = false;
     let kogetsuAttackLeft = false, kogetsuAttackRight = false;
+    let senkuActiveLeft = false, senkuActiveRight = false; // 追加: 旋空状態
+
     canvas.addEventListener('mousedown', (e) => {
       // 玉トリガーは2回クリックで発射
       if (e.button === 0) {
@@ -840,8 +790,8 @@
     function animate() {
       requestAnimationFrame(animate);
 
-      // 移動速度
-      let speed = isRunning ? 0.22 : 0.13;
+      // --- 移動速度を大幅アップ ---
+      let speed = isRunning ? 0.5 : 0.32; // 以前より速く
       if (isCrouching) {
         playerHeight = crouchHeight;
       } else {
@@ -868,7 +818,7 @@
 
       // ジャンプ（スペースキーでジャンプ）
       if (jumpRequested && isOnGround) {
-        playerVel.y = 0.18;
+        playerVel.y = 0.38; // ジャンプ力もアップ
         isOnGround = false;
       }
       jumpRequested = false;
@@ -906,7 +856,7 @@
       camera.position.copy(camPos);
       camera.lookAt(playerPos.clone().add(camUp.clone().multiplyScalar(1.2)));
 
-      // トリガーの手元表示（TPSではプレイヤーの前方に表示）
+      // トリガーの手元表示
       if (leftBulletObj) {
         leftBulletObj.position.copy(playerPos)
           .add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
@@ -917,9 +867,13 @@
           .add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
         rightBulletObj.rotation.y = yaw;
       }
-      // 弧月・シールド
+      // 弧月・旋空・シールド
       if (leftTriggerObj) {
-        if (leftTriggerType === "shield") {
+        if (senkuActiveLeft) {
+          leftTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          leftTriggerObj.rotation.y = yaw;
+        } else if (leftTriggerType === "shield") {
           leftTriggerObj.position.copy(playerPos)
             .add(new THREE.Vector3(0, 1.2, -1.1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
           leftTriggerObj.rotation.y = yaw;
@@ -928,18 +882,13 @@
             .add(new THREE.Vector3(-0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
           leftTriggerObj.rotation.y = yaw;
         }
-        if (leftTriggerType === "senku" && leftSpecialActive) {
-          leftTriggerObj.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
-          });
-        } else if (leftTriggerType === "senku") {
-          leftTriggerObj.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
-          });
-        }
       }
       if (rightTriggerObj) {
-        if (rightTriggerType === "shield") {
+        if (senkuActiveRight) {
+          rightTriggerObj.position.copy(playerPos)
+            .add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
+          rightTriggerObj.rotation.y = yaw;
+        } else if (rightTriggerType === "shield") {
           rightTriggerObj.position.copy(playerPos)
             .add(new THREE.Vector3(0, 1.2, -1.1).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
           rightTriggerObj.rotation.y = yaw;
@@ -948,10 +897,61 @@
             .add(new THREE.Vector3(0.8, 1.2, -1.5).applyEuler(new THREE.Euler(0, yaw, 0, "YXZ")));
           rightTriggerObj.rotation.y = yaw;
         }
-        if (rightTriggerType === "senku" && rightSpecialActive) {
-          rightTriggerObj.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = true;
-          });
+      }
+
+      // 玉トリガー弾丸の移動・消去
+      for (let i = 0; i < bullets.length; i++) {
+        const bullet = bullets[i];
+        if (!bullet.alive) continue;
+        bullet.mesh.position.add(bullet.velocity);
+        // メテオラ爆発判定
+        if (bullet.type === "meteorora") {
+          // 地面に着弾したら爆発
+          if (bullet.mesh.position.y < 0.5) {
+            // 爆発エフェクト生成
+            const explosion = new THREE.Mesh(
+              new THREE.SphereGeometry(2.2, 24, 24),
+              new THREE.MeshPhysicalMaterial({
+                color: 0xffee33,
+                emissive: 0xffee33,
+                emissiveIntensity: 2.5,
+                transparent: true,
+                opacity: 0.7,
+                roughness: 0.25,
+                metalness: 0.2
+              })
+            );
+            explosion.position.copy(bullet.mesh.position);
+            scene.add(explosion);
+            explosions.push({ mesh: explosion, time: 0 });
+            scene.remove(bullet.mesh);
+            bullet.alive = false;
+            continue;
+          }
+        }
+        // 地面より下 or 遠くに行ったら消す
+        if (bullet.mesh.position.y < 0.5 ||
+            bullet.mesh.position.distanceTo(playerPos) > 120) {
+          scene.remove(bullet.mesh);
+          bullet.alive = false;
+        }
+      }
+
+      // メテオラ爆発エフェクトの消去（0.5秒で消える）
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].time += 1 / 60;
+        if (explosions[i].time > 0.5) {
+          scene.remove(explosions[i].mesh);
+          explosions.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
         } else if (rightTriggerType === "senku") {
           rightTriggerObj.children.forEach(obj => {
             if (obj.geometry && obj.geometry.type === "CylinderGeometry") obj.visible = false;
